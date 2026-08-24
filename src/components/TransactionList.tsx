@@ -1,5 +1,5 @@
 import { useFinanceStore } from "../../store";
-import { formatCents } from "../../formatCents";
+import { formatCents } from "../../money";
 
 export function TransactionList() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
@@ -40,7 +40,9 @@ export function TransactionList() {
           <tr key={transaction.id}>
             <td>{transaction.date}</td>
             <td>{transaction.description}</td>
-            <td>{formatCents(transaction.amountInCents)}</td>
+            <td>
+              {formatCents(transaction.amountInCents, { alwaysShowSign: true })}
+            </td>
           </tr>
         ))}
       </tbody>

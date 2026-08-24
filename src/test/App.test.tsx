@@ -31,6 +31,7 @@ describe("App", () => {
       selector({
         loadAccounts: mockLoadAccounts,
         accounts: [],
+        transactions: [],
         selectedAccountId: null,
         ...overrides,
       }),

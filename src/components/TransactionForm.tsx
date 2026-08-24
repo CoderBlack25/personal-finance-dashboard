@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { useFinanceStore } from "../../store";
-import { dollarsStringToCents } from "../../dollarsStringToCents";
+import { dollarsStringToCents } from "../../money";
 
 const transactionFormSchema = z.object({
   type: z.enum(["expense", "income"]),

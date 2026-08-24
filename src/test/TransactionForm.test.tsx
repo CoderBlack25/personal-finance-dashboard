@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TransactionForm } from "@/components/TransactionForm";
-import { dollarsStringToCents } from "../../dollarsStringToCents";
+import { dollarsStringToCents } from "../../money";
 import { useFinanceStore } from "../../store";
 
 describe("dollarsStringToCents", () => {
