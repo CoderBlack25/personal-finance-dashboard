@@ -61,3 +61,8 @@ export async function getTransactionsForAccount(
   const db = await getDB();
   return db.getAllFromIndex("transactions", "by-account", accountId);
 }
+
+export async function putTransaction(transaction: Transaction): Promise<void> {
+  const db = await getDB();
+  await db.put("transactions", transaction);
+}

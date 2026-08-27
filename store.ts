@@ -5,6 +5,7 @@ import {
   getAccounts,
   addTransaction,
   getTransactionsForAccount,
+  putTransaction,
 } from "./db";
 
 interface FinanceStore {
@@ -18,6 +19,7 @@ interface FinanceStore {
   createAccount: (input: Omit<Account, "id">) => Promise<void>;
   selectAccount: (accountId: string) => Promise<void>;
   createTransaction: (input: Omit<Transaction, "id">) => Promise<void>;
+  updateTransaction: (transaction: Transaction) => Promise<void>;
 }
 
 export const useFinanceStore = create<FinanceStore>()((set, get) => ({
@@ -83,6 +85,21 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       }));
     } catch {
       set({ error: "Could not save transaction.", isLoading: false });
+    }
+  },
+
+  updateTransaction: async (transaction) => {
+    set({ isLoading: true, error: null });
+    try {
+      await putTransaction(transaction);
+      set((state) => ({
+        transactions: state.transactions.map((t) =>
+          t.id === transaction.id ? transaction : t,
+        ),
+        isLoading: false,
+      }));
+    } catch {
+      set({ error: "Could not update transaction.", isLoading: false });
     }
   },
 }));

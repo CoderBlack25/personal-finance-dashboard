@@ -1,23 +1,12 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import {
+  type TransactionFormValues,
+  transactionFormSchema,
+} from "../../transactionSchema";
 import { format } from "date-fns";
 import { useFinanceStore } from "../../store";
 import { dollarsStringToCents } from "../../money";
-
-const transactionFormSchema = z.object({
-  type: z.enum(["expense", "income"]),
-  amount: z
-    .string()
-    .trim()
-    .min(1, "Enter an amount.")
-    .regex(/^\d+(\.\d{1,2})?$/, "Enter a valid amount, like 42 or 42.50.")
-    .refine((val) => Number(val) > 0, "Amount must be more than zero."),
-  date: z.string().min(1, "Pick a date."),
-  description: z.string().trim().min(1, "Add a short description."),
-});
-
-type TransactionFormValues = z.infer<typeof transactionFormSchema>;
 
 function getDefaultFormValues(): TransactionFormValues {
   return {

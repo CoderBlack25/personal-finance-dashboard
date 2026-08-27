@@ -1,9 +1,12 @@
+import { useState } from "react";
+import { EditTransactionForm } from "./EditTransactionForm";
 import { useFinanceStore } from "../../store";
-import { formatCents } from "../../money";
+import { formatCentsToDollar } from "../../money";
 
 export function TransactionList() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
   const transactions = useFinanceStore((state) => state.transactions);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   if (!selectedAccountId) {
     return <p>Add account to see your transactions here</p>;
@@ -33,18 +36,40 @@ export function TransactionList() {
           <th scope="col">Date</th>
           <th scope="col">Description</th>
           <th scope="col">Amount</th>
+          <th scope="col">Actions</th>
         </tr>
       </thead>
       <tbody>
-        {sortedByDateDescending.map((transaction) => (
-          <tr key={transaction.id}>
-            <td>{transaction.date}</td>
-            <td>{transaction.description}</td>
-            <td>
-              {formatCents(transaction.amountInCents, { alwaysShowSign: true })}
-            </td>
-          </tr>
-        ))}
+        {sortedByDateDescending.map((transaction) =>
+          editingId === transaction.id ? (
+            <tr key={transaction.id}>
+              <td colSpan={4}>
+                <EditTransactionForm
+                  transaction={transaction}
+                  onDone={() => setEditingId(null)}
+                />
+              </td>
+            </tr>
+          ) : (
+            <tr key={transaction.id}>
+              <td>{transaction.date}</td>
+              <td>{transaction.description}</td>
+              <td>
+                {formatCentsToDollar(transaction.amountInCents, {
+                  alwaysShowSign: true,
+                })}
+              </td>
+              <td>
+                <button
+                  type="button"
+                  onClick={() => setEditingId(transaction.id)}
+                >
+                  Edit
+                </button>
+              </td>
+            </tr>
+          ),
+        )}
       </tbody>
     </table>
   );

@@ -1,4 +1,4 @@
-function splitAbsoluteCents(absCents: number): {
+export function splitAbsoluteCents(absCents: number): {
   dollars: number;
   cents: number;
 } {
@@ -11,7 +11,7 @@ export function dollarsStringToCents(dollars: string): number {
   return Number(wholePart) * 100 + Number(paddedDecimal);
 }
 
-export function formatCents(
+export function formatCentsToDollar(
   amountInCents: number,
   options: { alwaysShowSign?: boolean } = {},
 ): string {

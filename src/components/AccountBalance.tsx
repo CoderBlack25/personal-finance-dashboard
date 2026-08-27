@@ -1,5 +1,5 @@
 import { useFinanceStore } from "../../store";
-import { computeBalance, formatCents } from "../../money";
+import { computeBalance, formatCentsToDollar } from "../../money";
 
 export function AccountBalance() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
@@ -10,5 +10,9 @@ export function AccountBalance() {
   }
 
   const balance = computeBalance(transactions);
-  return <p className="bg-pink-300">Current balance: {formatCents(balance)}</p>;
+  return (
+    <p className="bg-pink-300">
+      Current balance: {formatCentsToDollar(balance)}
+    </p>
+  );
 }

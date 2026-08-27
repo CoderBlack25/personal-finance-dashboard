@@ -8,8 +8,8 @@ export type Account = {
 
 export type Transaction = {
   id: string;
-  accountId: string; // which Account this belongs to, not a copy of its data
+  accountId: string;
   amountInCents: number;
-  date: string; // ISO date, e.g. "2026-08-06", not a Date object
+  date: string;
   description: string;
 };

@@ -3,7 +3,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { TransactionList } from "../components/TransactionList";
-import { formatCents } from "../../money";
+import { formatCentsToDollar } from "../../money";
 import { useFinanceStore } from "../../store";
 
 describe("formatCents", () => {
@@ -16,7 +16,7 @@ describe("formatCents", () => {
     [0, "+$0.00"],
     [100, "+$1.00"],
   ])("formats %i cents as %s", (cents, expected) => {
-    expect(formatCents(cents, { alwaysShowSign: true })).toBe(expected);
+    expect(formatCentsToDollar(cents, { alwaysShowSign: true })).toBe(expected);
   });
 });
 
