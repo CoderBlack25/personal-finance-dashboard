@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { TransactionList } from "../components/TransactionList";
 import { formatCentsToDollar } from "../../money";
@@ -115,5 +116,32 @@ describe("TransactionList", () => {
       (row) => within(row).getAllByRole("cell")[1].textContent,
     );
     expect(descriptionsInOrder).toEqual(["Newest", "Middle", "Oldest"]);
+  });
+
+  it("shows the edit form when a transaction's edit button is clicked", async () => {
+    mockState({
+      selectedAccountId: "acc_1",
+      transactions: [
+        {
+          id: "tx_1",
+          accountId: "acc_1",
+          amountInCents: -4250,
+          date: "2026-08-01",
+          description: "Coffee",
+        },
+      ],
+    });
+    render(<TransactionList />);
+
+    const user = userEvent.setup();
+    const transactionRow = screen.getByText("Coffee").closest("tr")!;
+    await user.click(
+      within(transactionRow).getByRole("button", { name: /edit/i }),
+    );
+
+    expect(screen.getByLabelText(/description/i)).toHaveValue("Coffee");
+    expect(
+      screen.getByRole("button", { name: /save changes/i }),
+    ).toBeInTheDocument();
   });
 });

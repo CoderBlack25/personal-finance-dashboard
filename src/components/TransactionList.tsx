@@ -30,7 +30,7 @@ export function TransactionList() {
 
   return (
     <table className="bg-green-700">
-      <caption>Transactions</caption>
+      <caption className="text-white">Transactions</caption>
       <thead>
         <tr>
           <th scope="col">Date</th>

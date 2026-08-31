@@ -26,12 +26,12 @@ const App = () => {
   );
 
   return (
-    <main>
-      <h1>Personal Finance Dashboard</h1>
+    <main className="bg-black min-h-screen px-20">
+      <h1 className="text-white">Personal Finance Dashboard</h1>
 
       <AccountForm />
 
-      <p>
+      <p className="text-white">
         {currentAccount
           ? `Currently adding transactions to: ${currentAccount.name}`
           : "No account selected yet."}
