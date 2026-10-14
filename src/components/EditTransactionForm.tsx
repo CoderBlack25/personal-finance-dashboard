@@ -20,6 +20,7 @@ function transactionToFormValues(
     amount: `${dollars}.${String(cents).padStart(2, "0")}`,
     date: transaction.date,
     description: transaction.description,
+    categoryId: transaction.categoryId,
   };
 }
 
@@ -33,6 +34,7 @@ export function EditTransactionForm({
   onDone,
 }: EditTransactionFormProps) {
   const updateTransaction = useFinanceStore((state) => state.updateTransaction);
+  const categories = useFinanceStore((state) => state.categories);
   const storeError = useFinanceStore((state) => state.error);
 
   const {
@@ -51,6 +53,7 @@ export function EditTransactionForm({
       amountInCents: values.type === "expense" ? -cents : cents,
       date: values.date,
       description: values.description,
+      categoryId: values.categoryId,
     });
     if (!useFinanceStore.getState().error) {
       onDone();
@@ -126,6 +129,22 @@ export function EditTransactionForm({
             {errors.description.message}
           </p>
         )}
+      </div>
+
+      <div>
+        <label htmlFor="edit-transaction-category">Category</label>
+        <select
+          id="edit-transaction-category"
+          {...register("categoryId")}
+          defaultValue={transaction.categoryId ?? ""}
+        >
+          <option value="">— No category —</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {storeError && <p role="alert">{storeError}</p>}

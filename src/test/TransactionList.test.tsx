@@ -29,9 +29,10 @@ vi.mock("../../store", () => {
 function mockState(state: {
   selectedAccountId: string | null;
   transactions: any[];
+  categories?: any[];
 }) {
   vi.mocked(useFinanceStore).mockImplementation((selector: any) =>
-    selector(state),
+    selector({ categories: [], ...state }),
   );
 }
 
@@ -57,6 +58,7 @@ describe("TransactionList", () => {
         {
           id: "tx_1",
           accountId: "acc_1",
+          categoryId: null,
           amountInCents: -4250,
           date: "2026-08-01",
           description: "Coffee",
@@ -64,6 +66,7 @@ describe("TransactionList", () => {
         {
           id: "tx_2",
           accountId: "acc_1",
+          categoryId: null,
           amountInCents: 120000,
           date: "2026-08-05",
           description: "Paycheck",
@@ -89,6 +92,7 @@ describe("TransactionList", () => {
         {
           id: "tx_1",
           accountId: "acc_1",
+          categoryId: null,
           amountInCents: -100,
           date: "2026-08-01",
           description: "Oldest",
@@ -96,6 +100,7 @@ describe("TransactionList", () => {
         {
           id: "tx_2",
           accountId: "acc_1",
+          categoryId: null,
           amountInCents: -100,
           date: "2026-08-10",
           description: "Newest",
@@ -103,6 +108,7 @@ describe("TransactionList", () => {
         {
           id: "tx_3",
           accountId: "acc_1",
+          categoryId: null,
           amountInCents: -100,
           date: "2026-08-05",
           description: "Middle",
@@ -125,6 +131,7 @@ describe("TransactionList", () => {
         {
           id: "tx_1",
           accountId: "acc_1",
+          categoryId: null,
           amountInCents: -4250,
           date: "2026-08-01",
           description: "Coffee",

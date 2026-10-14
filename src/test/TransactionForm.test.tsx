@@ -35,6 +35,7 @@ describe("TransactionForm", () => {
       selector({
         selectedAccountId: "acc_1",
         createTransaction: mockCreateTransaction,
+        categories: [],
         error: null,
       }),
     );
@@ -46,6 +47,7 @@ describe("TransactionForm", () => {
       selector({
         selectedAccountId: null,
         createTransaction: mockCreateTransaction,
+        categories: [],
         error: null,
       }),
     );

@@ -10,6 +10,7 @@ export const transactionFormSchema = z.object({
     .refine((val) => Number(val) > 0, "Amount must be more than zero."),
   date: z.string().min(1, "Pick a date."),
   description: z.string().trim().min(1, "Add a short description."),
+  categoryId: z.string().nullable(),
 });
 
 export type TransactionFormValues = z.infer<typeof transactionFormSchema>;

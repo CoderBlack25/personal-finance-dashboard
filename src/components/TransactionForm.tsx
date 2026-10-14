@@ -14,12 +14,14 @@ function getDefaultFormValues(): TransactionFormValues {
     amount: "",
     date: format(new Date(), "yyyy-MM-dd"),
     description: "",
+    categoryId: null,
   };
 }
 
 export function TransactionForm() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
   const createTransaction = useFinanceStore((state) => state.createTransaction);
+  const categories = useFinanceStore((state) => state.categories);
   const storeError = useFinanceStore((state) => state.error);
 
   const {
@@ -43,6 +45,7 @@ export function TransactionForm() {
       amountInCents: values.type === "expense" ? -cents : cents,
       date: values.date,
       description: values.description,
+      categoryId: values.categoryId,
     });
     if (!useFinanceStore.getState().error) {
       reset(getDefaultFormValues());
@@ -118,6 +121,18 @@ export function TransactionForm() {
             {errors.description.message}
           </p>
         )}
+      </div>
+
+      <div>
+        <label htmlFor="transaction-category">Category</label>
+        <select id="transaction-category" {...register("categoryId")}>
+          <option value="">— No category —</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {storeError && <p role="alert">{storeError}</p>}

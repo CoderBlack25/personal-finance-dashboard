@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useFinanceStore } from "../../store";
-import type { Account } from "../../types";
+import type { Account, Transaction } from "../../types";
 import {
   addAccount,
   getAccounts,
   addTransaction,
   getTransactionsForAccount,
   putTransaction,
+  getCategories,
 } from "../../db";
 
 vi.mock("../../db", () => ({
@@ -15,15 +16,21 @@ vi.mock("../../db", () => ({
   addTransaction: vi.fn(),
   getTransactionsForAccount: vi.fn(),
   putTransaction: vi.fn(),
+  getCategories: vi.fn(),
+  addCategory: vi.fn(),
 }));
 
 describe("store", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // getCategories is called by loadAccounts via Promise.all; default to empty list.
+    vi.mocked(getCategories).mockResolvedValue([]);
+
     useFinanceStore.setState({
       accounts: [],
       transactions: [],
+      categories: [],
       selectedAccountId: null,
       isLoading: false,
       error: null,
@@ -69,10 +76,11 @@ describe("store", () => {
       },
     ];
 
-    const transactions = [
+    const transactions: Transaction[] = [
       {
         id: "transaction-1",
         accountId: "account-1",
+        categoryId: null,
         description: "Groceries",
         amountInCents: -5000,
         date: "2026-08-28",
@@ -165,10 +173,11 @@ describe("store", () => {
   });
 
   it("selects an account and loads its transactions", async () => {
-    const transactions = [
+    const transactions: Transaction[] = [
       {
         id: "transaction-1",
         accountId: "account-1",
+        categoryId: null,
         description: "Groceries",
         amountInCents: -5000,
         date: "2026-08-28",
@@ -203,14 +212,15 @@ describe("store", () => {
   });
 
   it("creates a transaction and adds it to the store", async () => {
-    const input = {
+    const input: Omit<Transaction, "id"> = {
       accountId: "account-1",
+      categoryId: null,
       description: "Groceries",
       amountInCents: -5000,
       date: "2026-08-28",
     };
 
-    const transaction = {
+    const transaction: Transaction = {
       id: "transaction-1",
       ...input,
     };
@@ -232,6 +242,7 @@ describe("store", () => {
 
     await useFinanceStore.getState().createTransaction({
       accountId: "account-1",
+      categoryId: null,
       description: "Groceries",
       amountInCents: -5000,
       date: "2026-08-28",
@@ -245,23 +256,25 @@ describe("store", () => {
   });
 
   it("updates an existing transaction", async () => {
-    const originalTransaction = {
+    const originalTransaction: Transaction = {
       id: "transaction-1",
       accountId: "account-1",
+      categoryId: null,
       description: "Groceries",
       amountInCents: -5000,
       date: "2026-08-28",
     };
 
-    const anotherTransaction = {
+    const anotherTransaction: Transaction = {
       id: "transaction-2",
       accountId: "account-1",
+      categoryId: null,
       description: "Transport",
       amountInCents: -2000,
       date: "2026-08-27",
     };
 
-    const updatedTransaction = {
+    const updatedTransaction: Transaction = {
       ...originalTransaction,
       description: "Updated groceries",
       amountInCents: -6000,
@@ -289,9 +302,10 @@ describe("store", () => {
   });
 
   it("sets an error when updating a transaction fails", async () => {
-    const transaction = {
+    const transaction: Transaction = {
       id: "transaction-1",
       accountId: "account-1",
+      categoryId: null,
       description: "Groceries",
       amountInCents: -5000,
       date: "2026-08-28",
