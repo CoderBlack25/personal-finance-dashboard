@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { Account, Category, Transaction } from "./types";
+import type { Account, Category, Transaction } from "../types/types";
 
 const DB_NAME = "finance-dashboard";
 const DB_VERSION = 2;

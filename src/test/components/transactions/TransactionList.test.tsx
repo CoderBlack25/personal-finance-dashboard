@@ -3,9 +3,9 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
-import { TransactionList } from "../components/TransactionList";
-import { formatCentsToDollar } from "../../money";
-import { useFinanceStore } from "../../store";
+import { TransactionList } from "../../../components/transactions/TransactionList";
+import { formatCentsToDollar } from "../../../utils/money";
+import { useFinanceStore } from "../../../../store/store";
 
 describe("formatCents", () => {
   it.each([

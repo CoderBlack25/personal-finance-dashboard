@@ -1,5 +1,5 @@
-import { useFinanceStore } from "../../store";
-import { computeBalance, formatCentsToDollar } from "../../money";
+import { useFinanceStore } from "../../../store/store";
+import { computeBalance, formatCentsToDollar } from "../../utils/money";
 
 export function AccountBalance() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);

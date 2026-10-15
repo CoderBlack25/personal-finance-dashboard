@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { EditTransactionForm } from "./EditTransactionForm";
-import { useFinanceStore } from "../../store";
-import { formatCentsToDollar } from "../../money";
+import { useFinanceStore } from "../../../store/store";
+import { formatCentsToDollar } from "../../utils/money";
 
 export function TransactionList() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);

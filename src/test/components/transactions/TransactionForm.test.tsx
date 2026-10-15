@@ -2,9 +2,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TransactionForm } from "@/components/TransactionForm";
-import { dollarsStringToCents } from "../../money";
-import { useFinanceStore } from "../../store";
+import { TransactionForm } from "@/components/transactions/TransactionForm";
+import { dollarsStringToCents } from "../../../utils/money";
+import { useFinanceStore } from "../../../../store/store";
 
 describe("dollarsStringToCents", () => {
   it.each([

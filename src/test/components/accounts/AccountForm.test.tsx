@@ -2,8 +2,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { AccountForm } from "../components/AccountForm";
-import { useFinanceStore } from "../../store";
+import { AccountForm } from "../../../components/accounts/AccountForm";
+import { useFinanceStore } from "../../../../store/store";
 
 vi.mock("../../store", () => {
   const useFinanceStore = vi.fn() as any;

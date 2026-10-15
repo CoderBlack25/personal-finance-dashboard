@@ -3,7 +3,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import App from "../App";
-import { useFinanceStore } from "../../store";
+import { useFinanceStore } from "../../store/store";
 
 vi.mock("../components/AccountForm", () => ({
   AccountForm: () => <div>AccountForm stub</div>,
