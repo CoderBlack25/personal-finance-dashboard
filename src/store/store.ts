@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Account, Category, Transaction } from "../types/types";
+import type { Account, Category, Transaction } from "@/types/types";
 import {
   addAccount,
   getAccounts,

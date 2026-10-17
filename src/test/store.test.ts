@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useFinanceStore } from "../store/store";
-import type { Account, Transaction } from "../types/types";
+import { useFinanceStore } from "@/store/store";
+import type { Account, Transaction } from "@/types/types";
 import {
   addAccount,
   getAccounts,
@@ -8,9 +8,9 @@ import {
   getTransactionsForAccount,
   putTransaction,
   getCategories,
-} from "../services/db";
+} from "@/services/db";
 
-vi.mock("../services/db", () => ({
+vi.mock("@/services/db", () => ({
   addAccount: vi.fn(),
   getAccounts: vi.fn(),
   addTransaction: vi.fn(),

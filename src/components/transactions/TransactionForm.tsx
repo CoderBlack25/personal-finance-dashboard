@@ -3,10 +3,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   type TransactionFormValues,
   transactionFormSchema,
-} from "../../schemas/transactionSchema";
+} from "@/schemas/transactionSchema";
 import { format } from "date-fns";
-import { useFinanceStore } from "../../store/store";
-import { dollarsStringToCents } from "../../utils/money";
+import { useFinanceStore } from "@/store/store";
+import { dollarsStringToCents } from "@/utils/money";
 
 function getDefaultFormValues(): TransactionFormValues {
   return {

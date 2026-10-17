@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import { useFinanceStore } from "../../store/store";
+import { useFinanceStore } from "@/store/store";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
