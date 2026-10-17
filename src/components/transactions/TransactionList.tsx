@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { EditTransactionForm } from "./EditTransactionForm";
-import { useFinanceStore } from "../../../store/store";
+import { useFinanceStore } from "../../store/store";
 import { formatCentsToDollar } from "../../utils/money";
 
 export function TransactionList() {

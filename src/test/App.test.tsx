@@ -3,16 +3,16 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import App from "../App";
-import { useFinanceStore } from "../../store/store";
+import { useFinanceStore } from "../store/store";
 
-vi.mock("../components/AccountForm", () => ({
+vi.mock("../components/accounts/AccountForm", () => ({
   AccountForm: () => <div>AccountForm stub</div>,
 }));
-vi.mock("../components/TransactionForm", () => ({
+vi.mock("../components/transactions/TransactionForm", () => ({
   TransactionForm: () => <div>TransactionForm stub</div>,
 }));
 
-vi.mock("../../store", () => {
+vi.mock("../store/store", () => {
   const useFinanceStore = vi.fn() as any;
   return { useFinanceStore };
 });

@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useFinanceStore } from "../../../store/store";
+import { useFinanceStore } from "../../store/store";
 import { dollarsStringToCents, splitAbsoluteCents } from "../../utils/money";
 import {
   type TransactionFormValues,

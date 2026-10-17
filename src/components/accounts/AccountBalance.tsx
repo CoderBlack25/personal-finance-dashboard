@@ -1,4 +1,4 @@
-import { useFinanceStore } from "../../../store/store";
+import { useFinanceStore } from "../../store/store";
 import { computeBalance, formatCentsToDollar } from "../../utils/money";
 
 export function AccountBalance() {

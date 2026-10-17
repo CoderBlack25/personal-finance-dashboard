@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Account, Category, Transaction } from "../src/types/types";
+import type { Account, Category, Transaction } from "../types/types";
 import {
   addAccount,
   getAccounts,
@@ -8,7 +8,7 @@ import {
   putTransaction,
   getCategories,
   addCategory,
-} from "../src/services/db";
+} from "../services/db";
 
 interface FinanceStore {
   accounts: Account[];

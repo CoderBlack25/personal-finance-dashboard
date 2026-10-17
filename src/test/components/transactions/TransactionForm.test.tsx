@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { dollarsStringToCents } from "../../../utils/money";
-import { useFinanceStore } from "../../../../store/store";
+import { useFinanceStore } from "../../../store/store";
 
 describe("dollarsStringToCents", () => {
   it.each([
@@ -20,7 +20,7 @@ describe("dollarsStringToCents", () => {
   });
 });
 
-vi.mock("../../store", () => {
+vi.mock("../../../store/store", () => {
   const useFinanceStore = vi.fn() as any;
   useFinanceStore.getState = vi.fn();
   return { useFinanceStore };

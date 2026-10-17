@@ -5,7 +5,7 @@ import {
   transactionFormSchema,
 } from "../../schemas/transactionSchema";
 import { format } from "date-fns";
-import { useFinanceStore } from "../../../store/store";
+import { useFinanceStore } from "../../store/store";
 import { dollarsStringToCents } from "../../utils/money";
 
 function getDefaultFormValues(): TransactionFormValues {

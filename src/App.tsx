@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useFinanceStore } from "../store/store";
+import { useFinanceStore } from "./store/store";
 import { AccountForm } from "@/components/accounts/AccountForm";
 import { AccountBalance } from "@/components/accounts/AccountBalance";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
