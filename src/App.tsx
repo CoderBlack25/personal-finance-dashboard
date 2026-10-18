@@ -1,13 +1,18 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useFinanceStore } from "./store/store";
 import { AccountForm } from "@/components/accounts/AccountForm";
 import { AccountBalance } from "@/components/accounts/AccountBalance";
 import { AccountsOverview } from "@/components/accounts/AccountsOverview";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { TransactionList } from "@/components/transactions/TransactionList";
-import { MonthlySummary } from "@/components/summary/MonthlySummary";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { CsvImport } from "@/components/transactions/CsvImport";
+
+const MonthlySummary = lazy(() =>
+  import("@/components/summary/MonthlySummary").then((mod) => ({
+    default: mod.MonthlySummary,
+  })),
+);
 
 type View = "dashboard" | "transactions" | "summary";
 
@@ -67,7 +72,11 @@ const [activeView, setActiveView] = useState<View>("transactions");
           </>
         )}
 
-        {activeView === "summary" && <MonthlySummary />}
+        {activeView === "summary" && (
+          <Suspense fallback={<p className="text-muted-foreground">Loading summary...</p>}>
+            <MonthlySummary />
+          </Suspense>
+        )}
       </main>
     </div>
   );
