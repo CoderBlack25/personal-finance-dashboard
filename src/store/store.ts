@@ -5,24 +5,32 @@ import {
   getAccounts,
   addTransaction,
   getTransactionsForAccount,
+  getAllTransactions,
   putTransaction,
   getCategories,
   addCategory,
+  importTransactions,
 } from "../services/db";
 
 interface FinanceStore {
   accounts: Account[];
   transactions: Transaction[];
+  allTransactions: Transaction[];
   categories: Category[];
   selectedAccountId: string | null;
   isLoading: boolean;
   error: string | null;
 
   loadAccounts: () => Promise<void>;
+  loadAllTransactions: () => Promise<void>;
   createAccount: (input: Omit<Account, "id">) => Promise<void>;
   selectAccount: (accountId: string) => Promise<void>;
   createTransaction: (input: Omit<Transaction, "id">) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
+  importTransactions: (input: {
+    accountId: string;
+    transactions: Array<{ date: string; amountInCents: number; description: string; categoryId: string | null }>;
+  }) => Promise<void>;
   loadCategories: () => Promise<void>;
   createCategory: (input: Omit<Category, "id">) => Promise<void>;
 }
@@ -31,6 +39,7 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
   // The state represents data.
   accounts: [],
   transactions: [],
+  allTransactions: [],
   categories: [],
   selectedAccountId: null,
   isLoading: false,
@@ -74,6 +83,16 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
     }
   },
 
+  loadAllTransactions: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const transactions = await getAllTransactions();
+      set({ allTransactions: transactions, isLoading: false });
+    } catch {
+      set({ error: "Could not load transactions.", isLoading: false });
+    }
+  },
+
   selectAccount: async (accountId) => {
     set({ selectedAccountId: accountId, isLoading: true, error: null });
     try {
@@ -109,6 +128,28 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       }));
     } catch {
       set({ error: "Could not update transaction.", isLoading: false });
+    }
+  },
+
+  importTransactions: async ({ accountId, transactions }) => {
+    set({ isLoading: true, error: null });
+    try {
+      const imported = await importTransactions(
+        transactions.map((t) => ({
+          accountId,
+          amountInCents: t.amountInCents,
+          date: t.date,
+          description: t.description,
+          categoryId: t.categoryId,
+        })),
+      );
+      set((state) => ({
+        transactions: [...state.transactions, ...imported],
+        allTransactions: [...state.allTransactions, ...imported],
+        isLoading: false,
+      }));
+    } catch {
+      set({ error: "Could not import transactions.", isLoading: false });
     }
   },
 

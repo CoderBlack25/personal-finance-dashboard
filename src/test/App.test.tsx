@@ -38,6 +38,13 @@ describe("App", () => {
     );
   }
 
+  async function switchToTransactions() {
+    await screen.findByRole("button", { name: /transactions/i }).then((btn) => {
+      // eslint-disable-next-line @testing-library/dom-events/no-mouse-events
+      btn.click();
+    });
+  }
+
   it("shows a loading state before loadAccounts resolves", () => {
     mockLoadAccounts.mockReturnValue(new Promise(() => {}));
     mockState({});
@@ -54,6 +61,7 @@ describe("App", () => {
 
     render(<App />);
 
+    await switchToTransactions();
     expect(await screen.findByText("AccountForm stub")).toBeInTheDocument();
     expect(screen.getByText("TransactionForm stub")).toBeInTheDocument();
   });
@@ -66,6 +74,8 @@ describe("App", () => {
     });
 
     render(<App />);
+
+    await switchToTransactions();
 
     expect(
       await screen.findByText(
@@ -80,6 +90,8 @@ describe("App", () => {
 
     render(<App />);
 
+    await switchToTransactions();
+
     expect(
       await screen.findByText(/no account selected yet/i),
     ).toBeInTheDocument();
@@ -91,6 +103,7 @@ describe("App", () => {
 
     render(<App />);
 
+    await switchToTransactions();
     expect(await screen.findByText("AccountForm stub")).toBeInTheDocument();
   });
 });

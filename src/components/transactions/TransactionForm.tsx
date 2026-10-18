@@ -53,7 +53,7 @@ export function TransactionForm() {
   };
 
   return (
-    <form className="bg-blue-400" onSubmit={handleSubmit(onSubmit)} noValidate>
+    <form className="bg-card border border-border rounded-lg p-6 space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
       <h2>Add transaction</h2>
 
       <fieldset>

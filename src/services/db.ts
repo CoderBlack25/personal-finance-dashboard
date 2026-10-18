@@ -92,9 +92,32 @@ export async function getTransactionsForAccount(
   return db.getAllFromIndex("transactions", "by-account", accountId);
 }
 
+export async function getAllTransactions(): Promise<Transaction[]> {
+  const db = await getDB();
+  return db.getAll("transactions");
+}
+
 export async function putTransaction(transaction: Transaction): Promise<void> {
   const db = await getDB();
   await db.put("transactions", transaction);
+}
+
+export async function importTransactions(
+  transactions: Omit<Transaction, "id">[],
+): Promise<Transaction[]> {
+  const db = await getDB();
+  const tx = db.transaction("transactions", "readwrite");
+  const store = tx.store;
+
+  const results: Transaction[] = [];
+  for (const input of transactions) {
+    const transaction: Transaction = { ...input, id: crypto.randomUUID() };
+    await store.add(transaction);
+    results.push(transaction);
+  }
+
+  await tx.done;
+  return results;
 }
 
 // ── Categories ───────────────────────────────────────────────────────────────

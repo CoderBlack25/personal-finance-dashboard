@@ -61,7 +61,7 @@ export function EditTransactionForm({
   };
 
   return (
-    <form className="bg-red-500" onSubmit={handleSubmit(onSubmit)} noValidate>
+    <form className="bg-card border border-border rounded-lg p-4 space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
       <fieldset>
         <legend>Type</legend>
         <label>

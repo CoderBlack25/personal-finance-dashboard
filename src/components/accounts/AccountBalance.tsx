@@ -11,7 +11,7 @@ export function AccountBalance() {
 
   const balance = computeBalance(transactions);
   return (
-    <p className="bg-pink-300">
+    <p className="text-lg font-medium">
       Current balance: {formatCentsToDollar(balance)}
     </p>
   );

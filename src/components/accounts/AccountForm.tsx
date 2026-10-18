@@ -42,7 +42,7 @@ export function AccountForm() {
   };
 
   return (
-    <form className="bg-amber-300" onSubmit={handleSubmit(onSubmit)} noValidate>
+    <form className="bg-card border border-border rounded-lg p-6" onSubmit={handleSubmit(onSubmit)} noValidate>
       <h2>Add account</h2>
 
       <div>
