@@ -2,6 +2,7 @@ import { useForm } from "react-hook-form";
 import { useFinanceStore } from "@/store/store";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Button } from "@/components/ui/button";
 
 const ACCOUNT_TYPES = ["checking", "savings", "credit", "cash"] as const;
 
@@ -19,7 +20,11 @@ const accountFormSchema = z.object({
 
 type AccountFormValues = z.infer<typeof accountFormSchema>;
 
-export function AccountForm() {
+interface AccountFormProps {
+  onClose?: () => void;
+}
+
+export function AccountForm({ onClose }: AccountFormProps) {
   const createAccount = useFinanceStore((state) => state.createAccount);
   const storeError = useFinanceStore((state) => state.error);
 
@@ -38,12 +43,26 @@ export function AccountForm() {
 
     if (!useFinanceStore.getState().error) {
       reset();
+      onClose?.();
     }
   };
 
   return (
     <form className="bg-card border border-border rounded-lg p-6" onSubmit={handleSubmit(onSubmit)} noValidate>
-      <h2>Add account</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold">Add account</h2>
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={() => {
+            reset();
+            onClose?.();
+          }}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          ✕
+        </button>
+      </div>
 
       <div>
         <label htmlFor="account-name">Account name</label>
@@ -75,9 +94,21 @@ export function AccountForm() {
 
       {storeError && <p role="alert">{storeError}</p>}
 
-      <button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Adding..." : "Add account"}
-      </button>
+      <div className="flex gap-2">
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Adding..." : "Add account"}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            reset();
+            onClose?.();
+          }}
+        >
+          Cancel
+        </Button>
+      </div>
     </form>
   );
 }

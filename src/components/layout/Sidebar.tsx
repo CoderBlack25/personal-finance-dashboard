@@ -14,10 +14,7 @@ interface SidebarProps {
   onViewChange: (view: View) => void;
 }
 
-export function Sidebar({
-  activeView,
-  onViewChange,
-}: SidebarProps) {
+export function Sidebar({ activeView, onViewChange }: SidebarProps) {
   const accounts = useFinanceStore((state) => state.accounts);
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
   const selectAccount = useFinanceStore((state) => state.selectAccount);

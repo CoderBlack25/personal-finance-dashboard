@@ -14,8 +14,6 @@ const MonthlySummary = lazy(() =>
   })),
 );
 
-type View = "dashboard" | "transactions" | "summary";
-
 const App = () => {
   const loadAccounts = useFinanceStore((state) => state.loadAccounts);
   const loadAllTransactions = useFinanceStore((state) =>
@@ -23,8 +21,9 @@ const App = () => {
   );
   const accounts = useFinanceStore((state) => state.accounts);
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
+  const activeView = useFinanceStore((state) => state.activeView);
+  const setActiveView = useFinanceStore((state) => state.setActiveView);
   const [hasLoaded, setHasLoaded] = useState(false);
-const [activeView, setActiveView] = useState<View>("transactions");
 
   useEffect(() => {
     loadAccounts()

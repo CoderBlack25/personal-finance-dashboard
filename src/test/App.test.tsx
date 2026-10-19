@@ -33,6 +33,8 @@ describe("App", () => {
         accounts: [],
         transactions: [],
         selectedAccountId: null,
+        activeView: "transactions",
+        setActiveView: vi.fn(),
         ...overrides,
       }),
     );
