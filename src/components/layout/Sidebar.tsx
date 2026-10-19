@@ -65,7 +65,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
           ))}
         </div>
 
-        <Button variant="outline" size="sm" className="w-full">
+        <Button variant="outline" size="sm" className="w-full" onClick={() => onViewChange("transactions")}>
           + Add account
         </Button>
       </div>
