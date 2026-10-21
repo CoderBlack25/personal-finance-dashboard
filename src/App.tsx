@@ -7,6 +7,7 @@ import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { CsvImport } from "@/components/transactions/CsvImport";
+import { CategoryManager } from "@/components/categories/CategoryManager";
 
 const MonthlySummary = lazy(() =>
   import("@/components/summary/MonthlySummary").then((mod) => ({
@@ -77,6 +78,8 @@ const App = () => {
             <MonthlySummary />
           </Suspense>
         )}
+
+        {activeView === "categories" && <CategoryManager />}
       </main>
     </div>
   );

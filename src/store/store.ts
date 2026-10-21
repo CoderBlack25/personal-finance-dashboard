@@ -11,9 +11,14 @@ import {
   getCategories,
   addCategory,
   importTransactions,
+  CategoryValidationError,
 } from "../services/db";
 
-export type View = "dashboard" | "transactions" | "summary";
+export type View =
+  | "dashboard"
+  | "transactions"
+  | "summary"
+  | "categories";
 
 interface FinanceStore {
   accounts: Account[];
@@ -41,7 +46,7 @@ interface FinanceStore {
     }>;
   }) => Promise<void>;
   loadCategories: () => Promise<void>;
-  createCategory: (input: Omit<Category, "id">) => Promise<void>;
+  createCategory: (input: Omit<Category, "id">) => Promise<string | null>;
   setActiveView: (view: View) => void;
 }
 
@@ -187,12 +192,18 @@ export const useFinanceStore = create<FinanceStore>()(
             categories: [...state.categories, category],
             isLoading: false,
           }));
-        } catch {
-          set({ error: "Could not create category.", isLoading: false });
+          return null;
+        } catch (cause) {
+          const message =
+            cause instanceof CategoryValidationError
+              ? cause.message
+              : "Could not create category.";
+          set({ error: message, isLoading: false });
+          return message;
         }
       },
 
-      setActiveView: (view) => set({ activeView: view }),
+      setActiveView: (view) => set({ activeView: view, error: null }),
     }),
     {
       name: "finance-store",

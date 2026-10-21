@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useFinanceStore } from "@/store/store";
-import type { Account, Transaction } from "@/types/types";
+import type { Account, Category, Transaction } from "@/types/types";
 import {
   addAccount,
   getAccounts,
@@ -8,17 +8,23 @@ import {
   getTransactionsForAccount,
   putTransaction,
   getCategories,
+  addCategory,
+  CategoryValidationError,
 } from "@/services/db";
 
-vi.mock("@/services/db", () => ({
-  addAccount: vi.fn(),
-  getAccounts: vi.fn(),
-  addTransaction: vi.fn(),
-  getTransactionsForAccount: vi.fn(),
-  putTransaction: vi.fn(),
-  getCategories: vi.fn(),
-  addCategory: vi.fn(),
-}));
+vi.mock("@/services/db", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/db")>();
+  return {
+    ...actual,
+    addAccount: vi.fn(),
+    getAccounts: vi.fn(),
+    addTransaction: vi.fn(),
+    getTransactionsForAccount: vi.fn(),
+    putTransaction: vi.fn(),
+    getCategories: vi.fn(),
+    addCategory: vi.fn(),
+  };
+});
 
 describe("store", () => {
   beforeEach(() => {
@@ -32,6 +38,7 @@ describe("store", () => {
       transactions: [],
       categories: [],
       selectedAccountId: null,
+      activeView: "transactions",
       isLoading: false,
       error: null,
     });
@@ -324,5 +331,68 @@ describe("store", () => {
     expect(state.transactions).toEqual([transaction]);
     expect(state.isLoading).toBe(false);
     expect(state.error).toBe("Could not update transaction.");
+  });
+
+  it("clears the error when the active view changes", () => {
+    useFinanceStore.setState({ error: "Could not save transaction." });
+
+    useFinanceStore.getState().setActiveView("categories");
+
+    const state = useFinanceStore.getState();
+
+    expect(state.activeView).toBe("categories");
+    expect(state.error).toBeNull();
+  });
+
+  it("creates a category and reports success", async () => {
+    const category: Category = {
+      id: "cat-1",
+      name: "Coffee",
+      color: "#14b8a6",
+    };
+
+    vi.mocked(addCategory).mockResolvedValue(category);
+
+    const failure = await useFinanceStore.getState().createCategory({
+      name: "Coffee",
+      color: "#14b8a6",
+    });
+
+    const state = useFinanceStore.getState();
+
+    expect(failure).toBeNull();
+    expect(state.categories).toEqual([category]);
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBeNull();
+  });
+
+  it("reports a validation failure when a category has an invalid color", async () => {
+    vi.mocked(addCategory).mockRejectedValue(
+      new CategoryValidationError("Pick a valid color."),
+    );
+
+    const failure = await useFinanceStore.getState().createCategory({
+      name: "Coffee",
+      color: "not-a-color",
+    });
+
+    const state = useFinanceStore.getState();
+
+    expect(failure).toBe("Pick a valid color.");
+    expect(state.error).toBe("Pick a valid color.");
+  });
+
+  it("reports a generic failure when creating a category fails", async () => {
+    vi.mocked(addCategory).mockRejectedValue(new Error("Database error"));
+
+    const failure = await useFinanceStore.getState().createCategory({
+      name: "Coffee",
+      color: "#14b8a6",
+    });
+
+    const state = useFinanceStore.getState();
+
+    expect(failure).toBe("Could not create category.");
+    expect(state.error).toBe("Could not create category.");
   });
 });

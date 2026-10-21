@@ -1,21 +1,24 @@
 import { useFinanceStore } from "@/store/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { LayoutDashboard, List, PieChart, Banknote, Plus } from "lucide-react";
+import {
+  LayoutDashboard,
+  List,
+  PieChart,
+  Banknote,
+  Plus,
+  Tags,
+} from "lucide-react";
+import type { View } from "@/store/store";
 
-type View = "dashboard" | "transactions" | "summary";
-
-const VIEW_LABELS: Record<View, string> = {
-  dashboard: "Dashboard",
-  transactions: "Transactions",
-  summary: "Summary",
+const NAV_ITEMS: Record<View, { label: string; icon: React.ElementType }> = {
+  dashboard: { label: "Dashboard", icon: LayoutDashboard },
+  transactions: { label: "Transactions", icon: List },
+  summary: { label: "Summary", icon: PieChart },
+  categories: { label: "Categories", icon: Tags },
 };
 
-const VIEW_ICONS: Record<View, React.ElementType> = {
-  dashboard: LayoutDashboard,
-  transactions: List,
-  summary: PieChart,
-};
+const VIEWS = Object.keys(NAV_ITEMS) as View[];
 
 interface SidebarProps {
   activeView: View;
@@ -48,13 +51,13 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
           <h2 className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Navigation
           </h2>
-          {["dashboard", "transactions", "summary"].map((view) => {
-            const Icon = VIEW_ICONS[view as View];
+          {VIEWS.map((view) => {
+            const { label, icon: Icon } = NAV_ITEMS[view];
             return (
               <button
                 key={view}
                 type="button"
-                onClick={() => onViewChange(view as View)}
+                onClick={() => onViewChange(view)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${
                   activeView === view
                     ? "bg-primary text-primary-foreground shadow-sm"
@@ -62,7 +65,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                {VIEW_LABELS[view as View]}
+                {label}
               </button>
             );
           })}

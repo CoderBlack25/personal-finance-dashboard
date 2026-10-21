@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import type { Account, Category, Transaction } from "@/types/types";
+import { HEX_COLOR_REGEX } from "@/schemas/categorySchema";
 
 const DB_NAME = "finance-dashboard";
 const DB_VERSION = 2;
@@ -127,9 +128,19 @@ export async function getCategories(): Promise<Category[]> {
   return db.getAll("categories");
 }
 
+export class CategoryValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CategoryValidationError";
+  }
+}
+
 export async function addCategory(
   input: Omit<Category, "id">,
 ): Promise<Category> {
+  if (!HEX_COLOR_REGEX.test(input.color)) {
+    throw new CategoryValidationError("Pick a valid color.");
+  }
   const db = await getDB();
   const category: Category = { ...input, id: crypto.randomUUID() };
   await db.add("categories", category);

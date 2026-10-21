@@ -137,3 +137,13 @@ export function computeAccountBalances(
 export function computeTotalBalance(transactions: Transaction[] = []): number {
   return computeBalance(transactions);
 }
+
+export function isDuplicateCategoryName(
+  name: string,
+  existing: Category[] = [],
+): boolean {
+  const target = name.trim().toLowerCase();
+  return existing.some(
+    (category) => category.name.trim().toLowerCase() === target,
+  );
+}

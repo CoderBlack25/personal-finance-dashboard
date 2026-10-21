@@ -6,6 +6,7 @@ import {
   computeMonthlySummary,
   computeRunningBalances,
   computeTotalBalance,
+  isDuplicateCategoryName,
 } from "@/utils/derived";
 
 const account = (overrides: Partial<Account> = {}): Account => ({
@@ -219,5 +220,32 @@ describe("computeTotalBalance", () => {
       transaction({ id: "tx-2", amountInCents: -250 }),
     ];
     expect(computeTotalBalance(transactions)).toBe(750);
+  });
+});
+
+describe("isDuplicateCategoryName", () => {
+  const categories: Category[] = [
+    category({ id: "cat-1", name: "Groceries" }),
+    category({ id: "cat-2", name: "Dining" }),
+  ];
+
+  it("returns false when there are no categories", () => {
+    expect(isDuplicateCategoryName("Coffee", [])).toBe(false);
+  });
+
+  it("returns false for a name that does not exist", () => {
+    expect(isDuplicateCategoryName("Coffee", categories)).toBe(false);
+  });
+
+  it("detects an exact match", () => {
+    expect(isDuplicateCategoryName("Groceries", categories)).toBe(true);
+  });
+
+  it("ignores case", () => {
+    expect(isDuplicateCategoryName("groceries", categories)).toBe(true);
+  });
+
+  it("ignores surrounding whitespace", () => {
+    expect(isDuplicateCategoryName("  Dining  ", categories)).toBe(true);
   });
 });
