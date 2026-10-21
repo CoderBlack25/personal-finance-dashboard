@@ -33,7 +33,12 @@ interface FinanceStore {
   updateTransaction: (transaction: Transaction) => Promise<void>;
   importTransactions: (input: {
     accountId: string;
-    transactions: Array<{ date: string; amountInCents: number; description: string; categoryId: string | null }>;
+    transactions: Array<{
+      date: string;
+      amountInCents: number;
+      description: string;
+      categoryId: string | null;
+    }>;
   }) => Promise<void>;
   loadCategories: () => Promise<void>;
   createCategory: (input: Omit<Category, "id">) => Promise<void>;
@@ -63,7 +68,10 @@ export const useFinanceStore = create<FinanceStore>()(
           ]);
           set({ accounts, categories, isLoading: false });
 
-          if (!get().selectedAccountId && accounts.length > 0) {
+          const state = get();
+          if (state.selectedAccountId) {
+            await get().selectAccount(state.selectedAccountId);
+          } else if (accounts.length > 0) {
             await get().selectAccount(accounts[0].id);
           }
         } catch {

@@ -8,13 +8,10 @@ const csvRowSchema = z.object({
     .string()
     .trim()
     .min(1, "Amount is required.")
-    .refine(
-      (val) => {
-        const cleaned = val.replace(/[$,]/g, "");
-        return /^-?\d+(\.\d{1,2})?$/.test(cleaned);
-      },
-      "Enter a valid amount, like 42.50 or -19.99.",
-    ),
+    .refine((val) => {
+      const cleaned = val.replace(/[$,]/g, "");
+      return /^-?\d+(\.\d{1,2})?$/.test(cleaned);
+    }, "Enter a valid amount, like 42.50 or -19.99."),
   description: z.string().nullable().optional(),
 });
 
@@ -27,12 +24,18 @@ export interface CsvValidationResult {
 
 export interface CsvInvalidRow {
   rowNumber: number;
-  errors: z.ZodIssue[];
+  errors: z.core.$ZodIssue[];
   raw: Record<string, string>;
 }
 
 export function validateCsvRows(
-  rows: Array<{ rowNumber: number; date: string | null; amount: string | null; description: string | null; raw: string[] }>,
+  rows: Array<{
+    rowNumber: number;
+    date: string | null;
+    amount: string | null;
+    description: string | null;
+    raw: string[];
+  }>,
   headers: string[],
 ): CsvValidationResult {
   const valid: ValidatedCsvRow[] = [];

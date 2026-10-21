@@ -40,9 +40,7 @@ describe("TransactionList", () => {
   it("prompts to add an account when none is selected", () => {
     mockState({ selectedAccountId: null, transactions: [] });
     render(<TransactionList />);
-    expect(
-      screen.getByText(/add account to see your transactions here/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/no account selected/i)).toBeInTheDocument();
   });
 
   it("shows an empty state when an account is selected but has no transactions", () => {

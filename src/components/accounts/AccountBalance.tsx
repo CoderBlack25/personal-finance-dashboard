@@ -10,9 +10,16 @@ export function AccountBalance() {
   }
 
   const balance = computeBalance(transactions);
+  const isPositive = balance >= 0;
+
   return (
-    <p className="text-lg font-medium">
-      Current balance: {formatCentsToDollar(balance)}
+    <p className="text-lg font-medium font-mono tabular-nums text-foreground">
+      Current balance:{" "}
+      <span
+        className={isPositive ? "text-success-foreground" : "text-destructive"}
+      >
+        {formatCentsToDollar(balance)}
+      </span>
     </p>
   );
 }

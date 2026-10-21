@@ -13,7 +13,9 @@ export interface CategoryRollup {
 export function computeCategoryRollups(
   transactions: Transaction[] = [],
   categories: Category[] = [],
+  options: { dateFrom?: string; dateTo?: string } = {},
 ): CategoryRollup[] {
+  const { dateFrom, dateTo } = options;
   const rollups = new Map<string | null, CategoryRollup>();
 
   const ensure = (categoryId: string | null): CategoryRollup => {
@@ -33,6 +35,12 @@ export function computeCategoryRollups(
   };
 
   for (const transaction of transactions) {
+    if (dateFrom && transaction.date < dateFrom) {
+      continue;
+    }
+    if (dateTo && transaction.date > dateTo) {
+      continue;
+    }
     const rollup = ensure(transaction.categoryId);
     if (transaction.amountInCents > 0) {
       rollup.income += transaction.amountInCents;
@@ -58,14 +66,10 @@ export function computeMonthlySummary(
 ): MonthlySummary {
   const monthKey = `${year}-${String(month).padStart(2, "0")}`;
   const income = transactions
-    .filter(
-      (t) => t.date.startsWith(monthKey) && t.amountInCents > 0,
-    )
+    .filter((t) => t.date.startsWith(monthKey) && t.amountInCents > 0)
     .reduce((sum, t) => sum + t.amountInCents, 0);
   const spending = transactions
-    .filter(
-      (t) => t.date.startsWith(monthKey) && t.amountInCents < 0,
-    )
+    .filter((t) => t.date.startsWith(monthKey) && t.amountInCents < 0)
     .reduce((sum, t) => sum + -t.amountInCents, 0);
   return { income, spending, net: income - spending };
 }
@@ -130,8 +134,6 @@ export function computeAccountBalances(
   }));
 }
 
-export function computeTotalBalance(
-  transactions: Transaction[] = [],
-): number {
+export function computeTotalBalance(transactions: Transaction[] = []): number {
   return computeBalance(transactions);
 }

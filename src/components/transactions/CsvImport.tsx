@@ -3,18 +3,27 @@ import { useFinanceStore } from "@/store/store";
 import { parseCsv } from "@/utils/csv";
 import { validateCsvRows, parseCsvAmount } from "@/schemas/csvSchema";
 import { formatCentsToDollar } from "@/utils/money";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
+import { Upload, FileText } from "lucide-react";
 
 export function CsvImport() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
-  const importTransactions = useFinanceStore((state) => state.importTransactions);
-  const loadAllTransactions = useFinanceStore((state) => state.loadAllTransactions);
+  const importTransactions = useFinanceStore(
+    (state) => state.importTransactions,
+  );
+  const loadAllTransactions = useFinanceStore(
+    (state) => state.loadAllTransactions,
+  );
   const error = useFinanceStore((state) => state.error);
 
   const [file, setFile] = useState<File | null>(null);
-  const [parseResult, setParseResult] = useState<ReturnType<typeof parseCsv> | null>(null);
-  const [validationResult, setValidationResult] = useState<
-    ReturnType<typeof validateCsvRows> | null
-  >(null);
+  const [parseResult, setParseResult] = useState<ReturnType<
+    typeof parseCsv
+  > | null>(null);
+  const [validationResult, setValidationResult] = useState<ReturnType<
+    typeof validateCsvRows
+  > | null>(null);
   const [importing, setImporting] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
 
@@ -75,26 +84,42 @@ export function CsvImport() {
 
   if (!file && !parseResult) {
     return (
-      <section className="bg-card border border-border rounded-lg p-6">
-        <h2 className="text-lg font-semibold mb-4">Import transactions from CSV</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Export transactions from your bank and upload the CSV file here. The
-          importer will detect date, amount, and description columns
-          automatically.
-        </p>
-        <label className="block">
-          <span className="text-sm font-medium">Select CSV file</span>
-          <input
-            type="file"
-            accept=".csv"
-            onChange={handleFileChange}
-            className="mt-2 block w-full text-sm text-muted-foreground
-              file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0
-              file:text-sm file:font-semibold file:bg-primary
-              file:text-primary-foreground hover:file:bg-primary/80"
-          />
-        </label>
-        {error && <p className="mt-2 text-sm text-destructive" role="alert">{error}</p>}
+      <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
+        <div className="flex flex-col items-center justify-center text-center">
+          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mb-4">
+            <Upload className="w-5 h-5" />
+          </div>
+          <h2 className="text-lg font-semibold">
+            Import transactions from CSV
+          </h2>
+          <p className="text-sm text-muted-foreground mt-2 max-w-sm">
+            Export transactions from your bank and upload the CSV file here. The
+            importer will detect date, amount, and description columns
+            automatically.
+          </p>
+        </div>
+
+        <div className="mt-6">
+          <label className="block">
+            <span className="text-sm font-medium text-foreground">
+              Select CSV file
+            </span>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileChange}
+              className="mt-2 block w-full text-sm text-muted-foreground
+                file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0
+                file:text-sm file:font-semibold file:bg-primary
+                file:text-primary-foreground hover:file:bg-primary/80"
+            />
+          </label>
+          {error && (
+            <Alert variant="destructive" className="mt-4">
+              {error}
+            </Alert>
+          )}
+        </div>
       </section>
     );
   }
@@ -103,36 +128,41 @@ export function CsvImport() {
   const invalidCount = validationResult?.invalid.length ?? 0;
 
   return (
-    <section className="bg-card border border-border rounded-lg p-6 space-y-4">
-      <h2 className="text-lg font-semibold">Import transactions from CSV</h2>
-      <p className="text-sm text-muted-foreground">
-        File: {file?.name}
-      </p>
+    <section className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-6">
+      <div className="flex items-start gap-3">
+        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+          <FileText className="w-4 h-4" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold">
+            Import transactions from CSV
+          </h2>
+          <p className="text-sm text-muted-foreground">File: {file?.name}</p>
+        </div>
+      </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-sm">
+        <span className="text-sm text-foreground">
           {validCount} valid, {invalidCount} invalid
         </span>
-        <button
+        <Button
           type="button"
           onClick={handleImport}
           disabled={importing || validCount === 0 || !selectedAccountId}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            validCount === 0 || !selectedAccountId || importing
-              ? "text-muted-foreground"
-              : "bg-primary text-primary-foreground hover:bg-primary/80"
-          }`}
         >
           {importing ? "Importing..." : `Import ${validCount} transaction(s)`}
-        </button>
+        </Button>
       </div>
 
       {invalidCount > 0 && validationResult && (
-        <div className="border border-destructive/20 bg-destructive/5 rounded-lg p-3">
-          <h3 className="text-sm font-medium text-destructive mb-2">
+        <Alert
+          variant="destructive"
+          className="border-destructive/50 bg-destructive/5"
+        >
+          <strong className="text-sm font-medium">
             {invalidCount} row(s) failed validation
-          </h3>
-          <ul className="text-xs text-destructive space-y-1">
+          </strong>
+          <ul className="text-xs text-destructive mt-2 space-y-1">
             {validationResult.invalid.map((invalid) => (
               <li key={invalid.rowNumber}>
                 Row {invalid.rowNumber}:{" "}
@@ -140,85 +170,111 @@ export function CsvImport() {
               </li>
             ))}
           </ul>
-        </div>
+        </Alert>
       )}
 
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr className="border-b border-border">
-            <th scope="col" className="text-left text-muted-foreground pb-2">
-              Row
-            </th>
-            <th scope="col" className="text-left text-muted-foreground pb-2">
-              Date
-            </th>
-            <th scope="col" className="text-right text-muted-foreground pb-2">
-              Amount
-            </th>
-            <th scope="col" className="text-left text-muted-foreground pb-2">
-              Description
-            </th>
-            <th scope="col" className="text-right text-muted-foreground pb-2">
-              Status
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {parseResult?.rows.map((row) => {
-            const invalidRow = validationResult?.invalid.find(
-              (r) => r.rowNumber === row.rowNumber,
-            );
-            const isValidRow = !invalidRow;
-
-            return (
-              <tr
-                key={row.rowNumber}
-                className={`border-b border-border ${
-                  isValidRow ? "" : "bg-destructive/10"
-                }`}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="border-b border-border">
+              <th
+                scope="col"
+                className="text-left text-xs text-muted-foreground pb-2 font-medium"
               >
-                <td className="py-2 text-muted-foreground">#{row.rowNumber}</td>
-                <td className="py-2 font-mono">
-                  {row.date ?? "-"}
-                  {!row.date && (
-                    <span className="text-destructive text-xs ml-1">
-                      (missing)
+                Row
+              </th>
+              <th
+                scope="col"
+                className="text-left text-xs text-muted-foreground pb-2 font-medium"
+              >
+                Date
+              </th>
+              <th
+                scope="col"
+                className="text-right text-xs text-muted-foreground pb-2 font-medium"
+              >
+                Amount
+              </th>
+              <th
+                scope="col"
+                className="text-left text-xs text-muted-foreground pb-2 font-medium"
+              >
+                Description
+              </th>
+              <th
+                scope="col"
+                className="text-right text-xs text-muted-foreground pb-2 font-medium"
+              >
+                Status
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {parseResult?.rows.map((row) => {
+              const invalidRow = validationResult?.invalid.find(
+                (r) => r.rowNumber === row.rowNumber,
+              );
+              const isValidRow = !invalidRow;
+
+              return (
+                <tr
+                  key={row.rowNumber}
+                  className={`border-b border-border ${
+                    isValidRow ? "" : "bg-destructive/5"
+                  }`}
+                >
+                  <td className="py-2 text-xs text-muted-foreground">
+                    #{row.rowNumber}
+                  </td>
+                  <td className="py-2 font-mono tabular-nums text-xs">
+                    {row.date ?? "-"}
+                    {!row.date && (
+                      <span className="text-destructive ml-1">(missing)</span>
+                    )}
+                  </td>
+                  <td className="py-2 text-right font-mono tabular-nums text-xs">
+                    {row.amount
+                      ? formatCentsToDollar(parseCsvAmount(row.amount))
+                      : "-"}
+                    {!row.amount && (
+                      <span className="text-destructive ml-1">(missing)</span>
+                    )}
+                  </td>
+                  <td className="py-2 text-xs text-foreground">
+                    {row.description ?? "-"}
+                  </td>
+                  <td className="py-2 text-right">
+                    <span
+                      className={`text-xs font-medium ${
+                        isValidRow
+                          ? "text-success-foreground"
+                          : "text-destructive"
+                      }`}
+                    >
+                      {isValidRow ? "Valid" : "Invalid"}
                     </span>
-                  )}
-                </td>
-                <td className="py-2 text-right font-mono">
-                  {row.amount ? formatCentsToDollar(parseCsvAmount(row.amount)) : "-"}
-                  {!row.amount && (
-                    <span className="text-destructive text-xs ml-1">
-                      (missing)
-                    </span>
-                  )}
-                </td>
-                <td className="py-2">{row.description ?? "-"}</td>
-                <td className="py-2 text-right">
-                  <span
-                    className={`text-xs font-medium ${
-                      isValidRow
-                        ? "text-green-600"
-                        : "text-destructive"
-                    }`}
-                  >
-                    {isValidRow ? "Valid" : "Invalid"}
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       {importedCount > 0 && (
-        <p className="text-sm text-green-600" role="status">
+        <Alert variant="success" className="border-success/50 bg-success/5">
           Successfully imported {importedCount} transaction(s).
-        </p>
+        </Alert>
       )}
 
-      {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+      {error && (
+        <Alert
+          variant="destructive"
+          className="border-destructive/50 bg-destructive/5"
+        >
+          {error}
+        </Alert>
+      )}
     </section>
   );
 }

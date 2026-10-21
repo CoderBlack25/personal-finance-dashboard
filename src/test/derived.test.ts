@@ -175,7 +175,10 @@ describe("computeRunningBalances", () => {
 
 describe("computeAccountBalances", () => {
   it("returns zero balances for accounts with no transactions", () => {
-    const accounts: Account[] = [account(), account({ id: "acc-2", name: "Savings" })];
+    const accounts: Account[] = [
+      account(),
+      account({ id: "acc-2", name: "Savings" }),
+    ];
 
     const rollups = computeAccountBalances(accounts, []);
 

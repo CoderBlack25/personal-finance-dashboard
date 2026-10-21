@@ -169,9 +169,9 @@ describe("validateCsvRows", () => {
     expect(result.valid).toHaveLength(0);
     expect(result.invalid).toHaveLength(1);
     expect(result.invalid[0].rowNumber).toBe(2);
-    expect(result.invalid[0].errors.some((e) => e.message.includes("Date"))).toBe(
-      true,
-    );
+    expect(
+      result.invalid[0].errors.some((e) => e.message.includes("Date")),
+    ).toBe(true);
   });
 
   it("rejects rows with missing date", () => {
@@ -206,9 +206,9 @@ describe("validateCsvRows", () => {
 
     expect(result.valid).toHaveLength(0);
     expect(result.invalid).toHaveLength(1);
-    expect(result.invalid[0].errors.some((e) => e.message.includes("amount"))).toBe(
-      true,
-    );
+    expect(
+      result.invalid[0].errors.some((e) => e.message.includes("amount")),
+    ).toBe(true);
   });
 
   it("handles empty description as null", () => {

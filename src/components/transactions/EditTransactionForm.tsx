@@ -5,8 +5,13 @@ import { dollarsStringToCents, splitAbsoluteCents } from "@/utils/money";
 import {
   type TransactionFormValues,
   transactionFormSchema,
-} from "../../schemas/transactionSchema";
-import type { Transaction } from "../../types/types";
+} from "@/schemas/transactionSchema";
+import type { Transaction } from "@/types/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 function transactionToFormValues(
   transaction: Transaction,
@@ -61,100 +66,153 @@ export function EditTransactionForm({
   };
 
   return (
-    <form className="bg-card border border-border rounded-lg p-4 space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
-      <fieldset>
-        <legend>Type</legend>
-        <label>
-          <input type="radio" value="expense" {...register("type")} />
-          Expense
-        </label>
-        <label>
-          <input type="radio" value="income" {...register("type")} />
-          Income
-        </label>
-      </fieldset>
+    <form
+      className="flex flex-col gap-4"
+      onSubmit={handleSubmit(onSubmit)}
+      noValidate
+    >
+      <Card className="p-5">
+        <h2 className="text-lg font-semibold mb-4">Edit transaction</h2>
 
-      <div>
-        <label htmlFor="edit-transaction-amount">Amount</label>
-        <input
-          id="edit-transaction-amount"
-          type="text"
-          inputMode="decimal"
-          aria-invalid={!!errors.amount}
-          aria-describedby={
-            errors.amount ? "edit-transaction-amount-error" : undefined
-          }
-          {...register("amount")}
-        />
-        {errors.amount && (
-          <p id="edit-transaction-amount-error" role="alert">
-            {errors.amount.message}
+        <div className="space-y-1">
+          <fieldset className="border-none p-0 m-0 flex gap-3">
+            <legend className="text-xs font-medium text-muted-foreground w-16 shrink-0">
+              Type
+            </legend>
+            <RadioGroup>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <RadioGroupItem value="expense" {...register("type")} />
+                Expense
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <RadioGroupItem value="income" {...register("type")} />
+                Income
+              </label>
+            </RadioGroup>
+          </fieldset>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label
+              htmlFor="edit-transaction-amount"
+              className="text-sm font-medium text-foreground"
+            >
+              Amount
+            </label>
+            <Input
+              id="edit-transaction-amount"
+              type="text"
+              inputMode="decimal"
+              aria-invalid={!!errors.amount}
+              aria-describedby={
+                errors.amount ? "edit-transaction-amount-error" : undefined
+              }
+              variant={errors.amount ? "error" : undefined}
+              {...register("amount")}
+            />
+            {errors.amount && (
+              <p
+                id="edit-transaction-amount-error"
+                role="alert"
+                className="text-xs text-destructive"
+              >
+                {errors.amount.message}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <label
+              htmlFor="edit-transaction-date"
+              className="text-sm font-medium text-foreground"
+            >
+              Date
+            </label>
+            <Input
+              id="edit-transaction-date"
+              type="date"
+              aria-invalid={!!errors.date}
+              aria-describedby={
+                errors.date ? "edit-transaction-date-error" : undefined
+              }
+              variant={errors.date ? "error" : undefined}
+              {...register("date")}
+            />
+            {errors.date && (
+              <p
+                id="edit-transaction-date-error"
+                role="alert"
+                className="text-xs text-destructive"
+              >
+                {errors.date.message}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label
+            htmlFor="edit-transaction-description"
+            className="text-sm font-medium text-foreground"
+          >
+            Description
+          </label>
+          <Input
+            id="edit-transaction-description"
+            type="text"
+            aria-invalid={!!errors.description}
+            aria-describedby={
+              errors.description
+                ? "edit-transaction-description-error"
+                : undefined
+            }
+            variant={errors.description ? "error" : undefined}
+            {...register("description")}
+          />
+          {errors.description && (
+            <p
+              id="edit-transaction-description-error"
+              role="alert"
+              className="text-xs text-destructive"
+            >
+              {errors.description.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-1">
+          <label
+            htmlFor="edit-transaction-category"
+            className="text-sm font-medium text-foreground"
+          >
+            Category
+          </label>
+          <Select id="edit-transaction-category" {...register("categoryId")}>
+            <option value="">— No category —</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        {storeError && (
+          <p role="alert" className="text-sm text-destructive">
+            {storeError}
           </p>
         )}
-      </div>
 
-      <div>
-        <label htmlFor="edit-transaction-date">Date</label>
-        <input
-          id="edit-transaction-date"
-          type="date"
-          aria-invalid={!!errors.date}
-          aria-describedby={
-            errors.date ? "edit-transaction-date-error" : undefined
-          }
-          {...register("date")}
-        />
-        {errors.date && (
-          <p id="edit-transaction-date-error" role="alert">
-            {errors.date.message}
-          </p>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="edit-transaction-description">Description</label>
-        <input
-          id="edit-transaction-description"
-          type="text"
-          aria-invalid={!!errors.description}
-          aria-describedby={
-            errors.description
-              ? "edit-transaction-description-error"
-              : undefined
-          }
-          {...register("description")}
-        />
-        {errors.description && (
-          <p id="edit-transaction-description-error" role="alert">
-            {errors.description.message}
-          </p>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="edit-transaction-category">Category</label>
-        <select
-          id="edit-transaction-category"
-          {...register("categoryId")}
-          defaultValue={transaction.categoryId ?? ""}
-        >
-          <option value="">— No category —</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {storeError && <p role="alert">{storeError}</p>}
-
-      <button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Saving..." : "Save changes"}
-      </button>
-      <button type="button" onClick={onDone}>
-        Cancel
-      </button>
+        <div className="flex gap-2 pt-4">
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : "Save changes"}
+          </Button>
+          <Button type="button" variant="ghost" onClick={onDone}>
+            Cancel
+          </Button>
+        </div>
+      </Card>
     </form>
   );
 }

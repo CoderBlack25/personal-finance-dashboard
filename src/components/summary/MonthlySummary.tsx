@@ -8,11 +8,15 @@ import {
   Title,
   Tooltip,
   Legend,
+  type Tick,
 } from "chart.js";
 import { useFinanceStore } from "@/store/store";
 import { computeCategoryRollups, computeMonthlySummary } from "@/utils/derived";
 import { format } from "date-fns";
 import { formatCentsToDollar } from "@/utils/money";
+import { Select } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { PieChart } from "lucide-react";
 
 Chart.register(
   BarController,
@@ -31,11 +35,16 @@ export function MonthlySummary() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [showTable, setShowTable] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartRef = useRef<Chart | null>(null);
 
-  const rollups = computeCategoryRollups(allTransactions, categories);
+  const rollups = computeCategoryRollups(allTransactions, categories, {
+    dateFrom,
+    dateTo,
+  });
   const summary = computeMonthlySummary(allTransactions, year, month);
   const monthLabel = format(new Date(year, month - 1), "MMMM yyyy");
 
@@ -60,7 +69,6 @@ export function MonthlySummary() {
     }
     if (!ctx) return;
 
-    // Destroy any existing chart on this canvas (StrictMode double-mount safety)
     chartRef.current?.destroy();
     chartRef.current = null;
 
@@ -70,9 +78,20 @@ export function MonthlySummary() {
         labels: rollups.map((rollup) => rollup.name),
         datasets: [
           {
+            label: "Income",
+            data: rollups.map((rollup) => rollup.income / 100),
+            backgroundColor: "#22c55e",
+            borderColor: "#16a34a",
+            borderWidth: 1,
+            borderRadius: 4,
+          },
+          {
             label: "Spending",
             data: rollups.map((rollup) => rollup.spending / 100),
-            backgroundColor: rollups.map((rollup) => rollup.color),
+            backgroundColor: "#ef4444",
+            borderColor: "#dc2626",
+            borderWidth: 1,
+            borderRadius: 4,
           },
         ],
       },
@@ -82,14 +101,66 @@ export function MonthlySummary() {
         plugins: {
           title: {
             display: true,
-            text: `Spending by category — ${monthLabel}`,
+            text:
+              dateFrom || dateTo
+                ? `Income & Spending by category`
+                : `Income & Spending by category — ${monthLabel}`,
+            color: "var(--foreground)",
+            font: {
+              size: 13,
+              weight: 500,
+            },
           },
-          legend: { display: false },
+          legend: { display: true },
+          tooltip: {
+            backgroundColor: "var(--popover)",
+            titleColor: "var(--popover-foreground)",
+            bodyColor: "var(--popover-foreground)",
+            borderColor: "var(--border)",
+            borderWidth: 1,
+            titleFont: { size: 12, weight: 600 },
+            bodyFont: { size: 12 },
+            padding: 8,
+            cornerRadius: 6,
+            callbacks: {
+              label: (context) => {
+                const value = context.parsed.y;
+                if (value === null || value === undefined) return "";
+                const label = context.dataset.label || "";
+                return `${label}: ${formatCentsToDollar(value * 100)}`;
+              },
+            },
+          },
         },
         scales: {
           y: {
             beginAtZero: true,
-            title: { display: true, text: "Amount (USD)" },
+            title: {
+              display: true,
+              text: "Amount (USD)",
+              color: "var(--muted-foreground)",
+              font: { size: 11, weight: 500 },
+            },
+            ticks: {
+              color: "var(--muted-foreground)",
+              font: { size: 11 },
+              callback: (value: string | number | Tick) => {
+                const num = typeof value === "number" ? value : Number(value);
+                return `$${Number.isFinite(num) ? num : 0}`;
+              },
+            },
+            grid: {
+              color: "var(--border)",
+            },
+          },
+          x: {
+            ticks: {
+              color: "var(--muted-foreground)",
+              font: { size: 11 },
+            },
+            grid: {
+              display: false,
+            },
           },
         },
       },
@@ -99,62 +170,137 @@ export function MonthlySummary() {
       chartRef.current?.destroy();
       chartRef.current = null;
     };
-  }, [allTransactions, year, month, categories, rollups, monthLabel]);
+  }, [
+    allTransactions,
+    year,
+    month,
+    categories,
+    rollups,
+    monthLabel,
+    dateFrom,
+    dateTo,
+  ]);
 
   return (
-    <section className="bg-card border border-border rounded-lg p-6 space-y-6">
-      <h2 className="text-lg font-semibold">Monthly summary</h2>
-      <div className="flex flex-col gap-4 md:flex-row md:items-end">
-        <div>
-          <label htmlFor="summary-month" className="block text-sm text-muted-foreground mb-1">
+    <section className="rounded-lg border border-border bg-card p-6 shadow-sm space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+          <PieChart className="w-4 h-4 text-primary-foreground" />
+        </div>
+        <h2 className="text-lg font-semibold">Monthly summary</h2>
+      </div>
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="flex-1 min-w-0">
+          <label
+            htmlFor="summary-month"
+            className="block text-xs font-medium text-muted-foreground mb-1"
+          >
             Month
           </label>
-          <select
+          <Select
             id="summary-month"
             value={month}
             onChange={(event) => setMonth(Number(event.target.value))}
-            className="bg-input border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            {[...Array(12)].map((_, index) => index + 1).map((m) => (
-              <option key={m} value={m}>
-                {format(new Date(now.getFullYear(), m - 1), "MMMM")}
-              </option>
-            ))}
-          </select>
+            {[...Array(12)]
+              .map((_, index) => index + 1)
+              .map((m) => (
+                <option key={m} value={m}>
+                  {format(new Date(now.getFullYear(), m - 1), "MMMM")}
+                </option>
+              ))}
+          </Select>
         </div>
-        <div>
-          <label htmlFor="summary-year" className="block text-sm text-muted-foreground mb-1">
+        <div className="min-w-25">
+          <label
+            htmlFor="summary-year"
+            className="block text-xs font-medium text-muted-foreground mb-1"
+          >
             Year
           </label>
-          <input
+          <Input
             id="summary-year"
             type="number"
             value={year}
             onChange={(event) => setYear(Number(event.target.value))}
-            className="bg-input border border-border rounded-lg px-3 py-2 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-32"
           />
         </div>
       </div>
-      <div className="bg-card border border-border rounded-lg p-4">
-        <canvas ref={canvasRef} aria-label="Spending by category chart" />
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="flex-1 min-w-0">
+          <label
+            htmlFor="summary-date-from"
+            className="block text-xs font-medium text-muted-foreground mb-1"
+          >
+            From
+          </label>
+          <Input
+            id="summary-date-from"
+            type="date"
+            value={dateFrom}
+            onChange={(event) => setDateFrom(event.target.value)}
+            className="w-full"
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <label
+            htmlFor="summary-date-to"
+            className="block text-xs font-medium text-muted-foreground mb-1"
+          >
+            To
+          </label>
+          <Input
+            id="summary-date-to"
+            type="date"
+            value={dateTo}
+            onChange={(event) => setDateTo(event.target.value)}
+            className="w-full"
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-lg p-4">
-          <h3 className="text-sm text-muted-foreground mb-1">Income</h3>
-          <p className="font-mono text-lg" aria-label={incomeLabel}>
+      <div className="h-64 rounded-lg border border-border bg-card p-4">
+        <canvas
+          ref={canvasRef}
+          aria-label="Income and spending by category chart"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <h3 className="text-xs font-medium text-muted-foreground mb-1">
+            Income
+          </h3>
+          <p
+            className="font-mono tabular-nums text-lg text-success-foreground"
+            aria-label={incomeLabel}
+          >
             {incomeLabel}
           </p>
         </div>
-        <div className="bg-card border border-border rounded-lg p-4">
-          <h3 className="text-sm text-muted-foreground mb-1">Spending</h3>
-          <p className="font-mono text-lg" aria-label={spendingLabel}>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <h3 className="text-xs font-medium text-muted-foreground mb-1">
+            Spending
+          </h3>
+          <p
+            className="font-mono tabular-nums text-lg text-destructive"
+            aria-label={spendingLabel}
+            title="Total outflow this month"
+          >
             {spendingLabel}
           </p>
         </div>
-        <div className="bg-card border border-border rounded-lg p-4">
-          <h3 className="text-sm text-muted-foreground mb-1">Net</h3>
-          <p className="font-mono text-lg" aria-label={netLabel}>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <h3 className="text-xs font-medium text-muted-foreground mb-1">
+            Net
+          </h3>
+          <p
+            className={`font-mono tabular-nums text-lg ${summary.net >= 0 ? "text-success-foreground" : "text-destructive"}`}
+            aria-label={netLabel}
+          >
             {netLabel}
           </p>
         </div>
@@ -162,7 +308,7 @@ export function MonthlySummary() {
 
       <button
         type="button"
-        className="text-sm text-primary-foreground hover:underline"
+        className="text-sm text-primary-foreground hover:underline transition-colors"
         onClick={() => setShowTable((prev) => !prev)}
         aria-pressed={showTable}
       >
@@ -170,35 +316,75 @@ export function MonthlySummary() {
       </button>
 
       {showTable && (
-        <div className="bg-card border border-border rounded-lg p-4">
-          <table className="w-full border-collapse" aria-label="Spending by category data table">
-            <caption className="text-sm font-medium text-foreground mb-2 text-left">
-              Spending by category — {monthLabel}
+        <div className="rounded-lg border border-border bg-card p-4">
+          <table
+            className="w-full text-sm border-collapse"
+            aria-label="Income and spending by category data table"
+          >
+            <caption className="text-left text-sm font-medium text-foreground mb-2">
+              Income and spending by category
             </caption>
             <thead>
               <tr>
-                <th scope="col" className="text-left text-sm text-muted-foreground pb-2">Category</th>
-                <th scope="col" className="text-right text-sm text-muted-foreground pb-2">Income</th>
-                <th scope="col" className="text-right text-sm text-muted-foreground pb-2">Spending</th>
-                <th scope="col" className="text-right text-sm text-muted-foreground pb-2">Net</th>
+                <th
+                  scope="col"
+                  className="text-left text-xs text-muted-foreground pb-2 font-medium"
+                >
+                  Category
+                </th>
+                <th
+                  scope="col"
+                  className="text-right text-xs text-muted-foreground pb-2 font-medium"
+                >
+                  Income
+                </th>
+                <th
+                  scope="col"
+                  className="text-right text-xs text-muted-foreground pb-2 font-medium"
+                >
+                  Spending
+                </th>
+                <th
+                  scope="col"
+                  className="text-right text-xs text-muted-foreground pb-2 font-medium"
+                >
+                  Net
+                </th>
               </tr>
             </thead>
             <tbody>
               {rollups.map((rollup) => (
-                <tr key={rollup.categoryId ?? rollup.name} className="border-t border-border">
-                  <td className="py-3">{rollup.name}</td>
-                  <td className="py-3 text-right font-mono">{formatCentsToDollar(rollup.income)}</td>
-                  <td className="py-3 text-right font-mono">{formatCentsToDollar(rollup.spending)}</td>
-                  <td className="py-3 text-right font-mono">
+                <tr
+                  key={rollup.categoryId ?? rollup.name}
+                  className="border-t border-border"
+                >
+                  <td className="py-3 text-sm text-foreground">
+                    {rollup.name}
+                  </td>
+                  <td className="py-3 text-right font-mono tabular-nums text-sm">
+                    {formatCentsToDollar(rollup.income)}
+                  </td>
+                  <td className="py-3 text-right font-mono tabular-nums text-sm">
+                    {formatCentsToDollar(rollup.spending)}
+                  </td>
+                  <td className="py-3 text-right font-mono tabular-nums text-sm">
                     {formatCentsToDollar(rollup.net, { alwaysShowSign: true })}
                   </td>
                 </tr>
               ))}
               <tr className="border-t border-border font-medium">
-                <td className="py-3"><strong>Total</strong></td>
-                <td className="py-3 text-right font-mono">{formatCentsToDollar(summary.income)}</td>
-                <td className="py-3 text-right font-mono">{formatCentsToDollar(summary.spending)}</td>
-                <td className="py-3 text-right font-mono">{netLabel}</td>
+                <td className="py-3 text-sm text-foreground">
+                  <strong>Total</strong>
+                </td>
+                <td className="py-3 text-right font-mono tabular-nums text-sm">
+                  {formatCentsToDollar(summary.income)}
+                </td>
+                <td className="py-3 text-right font-mono tabular-nums text-sm">
+                  {formatCentsToDollar(summary.spending)}
+                </td>
+                <td className="py-3 text-right font-mono tabular-nums text-sm">
+                  {netLabel}
+                </td>
               </tr>
             </tbody>
           </table>

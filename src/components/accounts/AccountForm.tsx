@@ -3,6 +3,9 @@ import { useFinanceStore } from "@/store/store";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { X } from "lucide-react";
 
 const ACCOUNT_TYPES = ["checking", "savings", "credit", "cash"] as const;
 
@@ -48,8 +51,12 @@ export function AccountForm({ onClose }: AccountFormProps) {
   };
 
   return (
-    <form className="bg-card border border-border rounded-lg p-6" onSubmit={handleSubmit(onSubmit)} noValidate>
-      <div className="flex items-center justify-between mb-4">
+    <form
+      className="flex flex-col gap-4"
+      onSubmit={handleSubmit(onSubmit)}
+      noValidate
+    >
+      <div className="flex items-center justify-between mb-2">
         <h2 className="text-lg font-semibold">Add account</h2>
         <button
           type="button"
@@ -58,56 +65,77 @@ export function AccountForm({ onClose }: AccountFormProps) {
             reset();
             onClose?.();
           }}
-          className="text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground transition-colors"
         >
-          ✕
+          <X className="w-4 h-4" />
         </button>
       </div>
 
-      <div>
-        <label htmlFor="account-name">Account name</label>
-        <input
-          id="account-name"
-          type="text"
-          placeholder="e.g Jude checking"
-          aria-invalid={!!errors.name}
-          aria-describedby={errors.name ? "account-name-error" : undefined}
-          {...register("name")}
-        />
-        {errors.name && (
-          <p id="account-name-error" role="alert">
-            {errors.name.message}
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <label
+            htmlFor="account-name"
+            className="text-sm font-medium text-foreground"
+          >
+            Account name
+          </label>
+          <Input
+            id="account-name"
+            type="text"
+            placeholder="e.g Jude checking"
+            aria-invalid={!!errors.name}
+            aria-describedby={errors.name ? "account-name-error" : undefined}
+            variant={errors.name ? "error" : undefined}
+            {...register("name")}
+          />
+          {errors.name && (
+            <p
+              id="account-name-error"
+              role="alert"
+              className="text-xs text-destructive"
+            >
+              {errors.name.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-1">
+          <label
+            htmlFor="account-type"
+            className="text-sm font-medium text-foreground"
+          >
+            Account type
+          </label>
+          <Select id="account-type" {...register("type")}>
+            {ACCOUNT_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {ACCOUNT_TYPE_LABELS[type]}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        {storeError && (
+          <p role="alert" className="text-sm text-destructive">
+            {storeError}
           </p>
         )}
-      </div>
 
-      <div>
-        <label htmlFor="account-type">Account type</label>
-        <select id="account-type" {...register("type")}>
-          {ACCOUNT_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {ACCOUNT_TYPE_LABELS[type]}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {storeError && <p role="alert">{storeError}</p>}
-
-      <div className="flex gap-2">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Adding..." : "Add account"}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => {
-            reset();
-            onClose?.();
-          }}
-        >
-          Cancel
-        </Button>
+        <div className="flex gap-2 pt-2">
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Adding..." : "Add account"}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              reset();
+              onClose?.();
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
       </div>
     </form>
   );

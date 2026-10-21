@@ -16,8 +16,8 @@ const MonthlySummary = lazy(() =>
 
 const App = () => {
   const loadAccounts = useFinanceStore((state) => state.loadAccounts);
-  const loadAllTransactions = useFinanceStore((state) =>
-    state.loadAllTransactions,
+  const loadAllTransactions = useFinanceStore(
+    (state) => state.loadAllTransactions,
   );
   const accounts = useFinanceStore((state) => state.accounts);
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
@@ -42,10 +42,7 @@ const App = () => {
 
   return (
     <div className="flex h-screen bg-background text-foreground">
-      <Sidebar
-        activeView={activeView}
-        onViewChange={setActiveView}
-      />
+      <Sidebar activeView={activeView} onViewChange={setActiveView} />
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
         <h1 className="text-2xl font-semibold">Personal Finance Dashboard</h1>
@@ -72,7 +69,11 @@ const App = () => {
         )}
 
         {activeView === "summary" && (
-          <Suspense fallback={<p className="text-muted-foreground">Loading summary...</p>}>
+          <Suspense
+            fallback={
+              <p className="text-muted-foreground">Loading summary...</p>
+            }
+          >
             <MonthlySummary />
           </Suspense>
         )}
