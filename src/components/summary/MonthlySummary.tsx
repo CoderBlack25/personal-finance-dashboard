@@ -11,7 +11,11 @@ import {
   type Tick,
 } from "chart.js";
 import { useFinanceStore } from "@/store/store";
-import { computeCategoryRollups, computeMonthlySummary } from "@/utils/derived";
+import {
+  computeCategoryRollups,
+  computeMonthlySummary,
+  filterTransactionsForAccounts,
+} from "@/utils/derived";
 import { format } from "date-fns";
 import { formatCentsToDollar } from "@/utils/money";
 import { Select } from "@/components/ui/select";
@@ -30,6 +34,7 @@ Chart.register(
 
 export function MonthlySummary() {
   const allTransactions = useFinanceStore((state) => state.allTransactions);
+  const accounts = useFinanceStore((state) => state.accounts);
   const categories = useFinanceStore((state) => state.categories);
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -41,11 +46,12 @@ export function MonthlySummary() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartRef = useRef<Chart | null>(null);
 
-  const rollups = computeCategoryRollups(allTransactions, categories, {
+  const transactions = filterTransactionsForAccounts(allTransactions, accounts);
+  const rollups = computeCategoryRollups(transactions, categories, {
     dateFrom,
     dateTo,
   });
-  const summary = computeMonthlySummary(allTransactions, year, month);
+  const summary = computeMonthlySummary(transactions, year, month);
   const monthLabel = format(new Date(year, month - 1), "MMMM yyyy");
 
   const incomeLabel = formatCentsToDollar(summary.income, {
@@ -171,7 +177,7 @@ export function MonthlySummary() {
       chartRef.current = null;
     };
   }, [
-    allTransactions,
+    transactions,
     year,
     month,
     categories,

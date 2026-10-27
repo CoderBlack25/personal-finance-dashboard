@@ -1,6 +1,8 @@
 import { useFinanceStore } from "@/store/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AccountActions } from "@/components/accounts/AccountActions";
+import { countTransactionsByAccount } from "@/utils/derived";
 import {
   LayoutDashboard,
   List,
@@ -27,8 +29,11 @@ interface SidebarProps {
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
   const accounts = useFinanceStore((state) => state.accounts);
+  const archivedAccounts = useFinanceStore((state) => state.archivedAccounts);
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
   const selectAccount = useFinanceStore((state) => state.selectAccount);
+  const allTransactions = useFinanceStore((state) => state.allTransactions);
+  const transactionCounts = countTransactionsByAccount(allTransactions);
 
   return (
     <aside className="flex-col w-64 border-r border-border bg-background shrink-0">
@@ -78,26 +83,60 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
             </h2>
             <div className="space-y-1">
               {accounts.map((account) => (
-                <button
-                  key={account.id}
-                  type="button"
-                  onClick={() => selectAccount(account.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-md border text-sm transition-colors ${
-                    selectedAccountId === account.id
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-transparent text-foreground hover:bg-accent hover:text-accent-foreground"
-                  }`}
-                >
-                  <span className="truncate">{account.name}</span>
-                  <Badge
-                    variant="outline"
-                    className="text-[0.65rem] leading-none opacity-60"
+                <div key={account.id} className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => selectAccount(account.id)}
+                    className={`min-w-0 flex-1 flex items-center justify-between px-3 py-2 rounded-md border text-sm transition-colors ${
+                      selectedAccountId === account.id
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "border-transparent text-foreground hover:bg-accent hover:text-accent-foreground"
+                    }`}
                   >
-                    {account.type}
-                  </Badge>
-                </button>
+                    <span className="truncate">{account.name}</span>
+                    <Badge
+                      variant="outline"
+                      className="text-[0.65rem] leading-none opacity-60"
+                    >
+                      {account.type}
+                    </Badge>
+                  </button>
+                  <AccountActions
+                    account={account}
+                    transactionCount={
+                      transactionCounts.get(account.id) ?? 0
+                    }
+                  />
+                </div>
               ))}
             </div>
+
+            {archivedAccounts.length > 0 && (
+              <div className="space-y-1 pt-2">
+                <h3 className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Archived ({archivedAccounts.length})
+                </h3>
+                {archivedAccounts.map((account) => (
+                  <div key={account.id} className="flex items-center gap-1">
+                    <div className="min-w-0 flex-1 flex items-center justify-between px-3 py-2 rounded-md border border-dashed text-sm text-muted-foreground">
+                      <span className="truncate">{account.name}</span>
+                      <Badge
+                        variant="outline"
+                        className="text-[0.65rem] leading-none"
+                      >
+                        archived
+                      </Badge>
+                    </div>
+                    <AccountActions
+                      account={account}
+                      transactionCount={
+                        transactionCounts.get(account.id) ?? 0
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <Button

@@ -5,7 +5,7 @@ import { validateCsvRows, parseCsvAmount } from "@/schemas/csvSchema";
 import { formatCentsToDollar } from "@/utils/money";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { Upload, FileText } from "lucide-react";
+import { Upload, FileText, RotateCcw } from "lucide-react";
 
 export function CsvImport() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
@@ -14,6 +14,9 @@ export function CsvImport() {
   );
   const loadAllTransactions = useFinanceStore(
     (state) => state.loadAllTransactions,
+  );
+  const voidTransactionBatch = useFinanceStore(
+    (state) => state.voidTransactionBatch,
   );
   const error = useFinanceStore((state) => state.error);
 
@@ -26,6 +29,8 @@ export function CsvImport() {
   > | null>(null);
   const [importing, setImporting] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
+  const [lastBatchId, setLastBatchId] = useState<string | null>(null);
+  const [rollingBack, setRollingBack] = useState(false);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0] ?? null;
@@ -35,6 +40,7 @@ export function CsvImport() {
     setParseResult(null);
     setValidationResult(null);
     setImportedCount(0);
+    setLastBatchId(null);
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -65,7 +71,7 @@ export function CsvImport() {
         categoryId: null,
       }));
 
-      await importTransactions({
+      const batchId = await importTransactions({
         accountId: selectedAccountId,
         transactions: inputTransactions,
       });
@@ -75,10 +81,28 @@ export function CsvImport() {
       setFile(null);
       setParseResult(null);
       setValidationResult(null);
+      setLastBatchId(batchId ?? null);
+      if (batchId) {
+        (window as any).__lastImportBatchId = batchId;
+      }
     } catch {
       // Error already set by store
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleRollback = async () => {
+    if (!lastBatchId) return;
+    setRollingBack(true);
+    try {
+      await voidTransactionBatch(lastBatchId);
+      setLastBatchId(null);
+      if ((window as any).__lastImportBatchId === lastBatchId) {
+        (window as any).__lastImportBatchId = null;
+      }
+    } finally {
+      setRollingBack(false);
     }
   };
 
@@ -118,6 +142,23 @@ export function CsvImport() {
             <Alert variant="destructive" className="mt-4">
               {error}
             </Alert>
+          )}
+          {importedCount > 0 && lastBatchId && (
+            <div className="mt-4 flex items-center justify-between rounded-md border border-border p-3">
+              <span className="text-sm text-foreground">
+                Successfully imported {importedCount} transaction(s).
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleRollback}
+                disabled={rollingBack}
+              >
+                <RotateCcw className="w-3 h-3 mr-2" />
+                {rollingBack ? "Rolling back..." : "Void this import"}
+              </Button>
+            </div>
           )}
         </div>
       </section>
@@ -261,10 +302,22 @@ export function CsvImport() {
         </table>
       </div>
 
-      {importedCount > 0 && (
-        <Alert variant="success" className="border-success/50 bg-success/5">
-          Successfully imported {importedCount} transaction(s).
-        </Alert>
+      {importedCount > 0 && lastBatchId && (
+        <div className="flex items-center justify-between rounded-md border border-border p-3">
+          <span className="text-sm text-foreground">
+            Successfully imported {importedCount} transaction(s).
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleRollback}
+            disabled={rollingBack}
+          >
+            <RotateCcw className="w-3 h-3 mr-2" />
+            {rollingBack ? "Rolling back..." : "Void this import"}
+          </Button>
+        </div>
       )}
 
       {error && (

@@ -9,9 +9,18 @@ const DialogPopup = Dialog.Popup;
 const DialogDescription = Dialog.Description;
 const DialogTitle = Dialog.Title;
 const DialogClose = Dialog.Close;
+const DialogPortal = Dialog.Portal;
+const DialogBackdrop = Dialog.Backdrop;
 
+// The popup must be positioned. base-ui's Dialog.Popup applies no positioning
+// of its own, so a static popup ignores `z-50` and is painted underneath the
+// fixed backdrop, which then swallows every click aimed at the dialog.
 const dialogContentVariants = cva(
-  "z-50 grid gap-1 rounded-lg border border-border bg-card p-6 text-left shadow-lg sm:rounded-xl",
+  "fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-1 rounded-lg border border-border bg-card p-6 text-left shadow-lg sm:rounded-xl",
+);
+
+const dialogBackdropVariants = cva(
+  "fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity data-[ending-style]:opacity-0 data-[starting-style]:opacity-0",
 );
 
 function DialogContent({
@@ -54,6 +63,19 @@ function DialogDescriptionStyled({
   );
 }
 
+function DialogBackdropStyled({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogBackdrop> &
+  VariantProps<typeof dialogBackdropVariants>) {
+  return (
+    <DialogBackdrop
+      className={cn(dialogBackdropVariants(), className)}
+      {...props}
+    />
+  );
+}
+
 export {
   DialogRoot as Dialog,
   DialogTrigger,
@@ -61,5 +83,8 @@ export {
   DialogTitleStyled as DialogTitle,
   DialogDescriptionStyled as DialogDescription,
   DialogClose,
+  DialogPortal,
+  DialogBackdropStyled as DialogBackdrop,
   dialogContentVariants,
+  dialogBackdropVariants,
 };

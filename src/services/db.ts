@@ -3,7 +3,7 @@ import type { Account, Category, Transaction } from "@/types/types";
 import { HEX_COLOR_REGEX } from "@/schemas/categorySchema";
 
 const DB_NAME = "finance-dashboard";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: "cat-income", name: "Income", color: "#14b8a6" },
@@ -23,7 +23,7 @@ interface FinanceDB extends DBSchema {
   transactions: {
     key: string;
     value: Transaction;
-    indexes: { "by-account": string };
+    indexes: { "by-account": string; "by-batch": string };
   };
   categories: {
     key: string;
@@ -55,24 +55,77 @@ function getDB(): Promise<IDBPDatabase<FinanceDB>> {
             catStore.add(category);
           }
         }
+
+        if (oldVersion < 3) {
+          const txStore = transaction.objectStore("transactions");
+          if (!txStore.indexNames.contains("by-batch")) {
+            txStore.createIndex("by-batch", "batchId");
+          }
+        }
       },
     });
   }
   return dbPromise;
 }
 
+export function normalizeTransaction(transaction: Transaction): Transaction {
+  if (transaction.status === "void") {
+    return transaction;
+  }
+  return { ...transaction, status: "posted" };
+}
+
+export function isPostedTransaction(transaction: Transaction): boolean {
+  return normalizeTransaction(transaction).status === "posted";
+}
+
 // ── Accounts ────────────────────────────────────────────────────────────────
 
-export async function addAccount(input: Omit<Account, "id">): Promise<Account> {
+export async function addAccount(
+  input: Omit<Account, "id" | "archived">,
+): Promise<Account> {
   const db = await getDB();
-  const account: Account = { ...input, id: crypto.randomUUID() };
+  const account: Account = {
+    ...input,
+    archived: false,
+    id: crypto.randomUUID(),
+  };
   await db.add("accounts", account);
   return account;
 }
 
 export async function getAccounts(): Promise<Account[]> {
   const db = await getDB();
-  return db.getAll("accounts");
+  const accounts = await db.getAll("accounts");
+  // Accounts written before archiving existed have no `archived` field. The
+  // stored schema (stores and indexes) is unchanged, so no version bump is
+  // needed; the flag is normalized on read and persisted on the next write.
+  return accounts.map((account) => ({
+    ...account,
+    archived: account.archived === true,
+  }));
+}
+
+export async function updateAccount(account: Account): Promise<void> {
+  const db = await getDB();
+  await db.put("accounts", account);
+}
+
+export async function deleteAccount(accountId: string): Promise<void> {
+  const db = await getDB();
+  await db.delete("accounts", accountId);
+}
+
+export async function countTransactionsForAccount(
+  accountId: string,
+): Promise<number> {
+  const db = await getDB();
+  const transactions = await db.getAllFromIndex(
+    "transactions",
+    "by-account",
+    accountId,
+  );
+  return transactions.filter(isPostedTransaction).length;
 }
 
 // ── Transactions ─────────────────────────────────────────────────────────────
@@ -81,7 +134,13 @@ export async function addTransaction(
   input: Omit<Transaction, "id">,
 ): Promise<Transaction> {
   const db = await getDB();
-  const transaction: Transaction = { ...input, id: crypto.randomUUID() };
+  const transaction: Transaction = {
+    ...input,
+    status: "posted",
+    batchId: input.batchId ?? null,
+    reversesId: input.reversesId ?? null,
+    id: crypto.randomUUID(),
+  };
   await db.add("transactions", transaction);
   return transaction;
 }
@@ -90,17 +149,71 @@ export async function getTransactionsForAccount(
   accountId: string,
 ): Promise<Transaction[]> {
   const db = await getDB();
-  return db.getAllFromIndex("transactions", "by-account", accountId);
+  const transactions = await db.getAllFromIndex(
+    "transactions",
+    "by-account",
+    accountId,
+  );
+  return transactions.map(normalizeTransaction);
 }
 
 export async function getAllTransactions(): Promise<Transaction[]> {
   const db = await getDB();
-  return db.getAll("transactions");
+  const transactions = await db.getAll("transactions");
+  return transactions.map(normalizeTransaction);
 }
 
 export async function putTransaction(transaction: Transaction): Promise<void> {
   const db = await getDB();
-  await db.put("transactions", transaction);
+  await db.put("transactions", normalizeTransaction(transaction));
+}
+
+export async function voidTransaction(
+  transactionId: string,
+  reason?: string,
+): Promise<Transaction | null> {
+  const db = await getDB();
+  const transaction = await db.get("transactions", transactionId);
+  if (!transaction) {
+    return null;
+  }
+
+  const normalized = normalizeTransaction(transaction);
+  if (normalized.status === "void") {
+    return normalized;
+  }
+
+  const voided: Transaction = {
+    ...normalized,
+    status: "void",
+    voidedAt: new Date().toISOString(),
+    voidReason: reason,
+  };
+
+  await db.put("transactions", voided);
+  return voided;
+}
+
+export async function voidTransactionBatch(batchId: string): Promise<number> {
+  if (!batchId) {
+    return 0;
+  }
+  const db = await getDB();
+  const transactions = await db.getAllFromIndex("transactions", "by-batch", batchId);
+  let count = 0;
+  for (const transaction of transactions) {
+    const normalized = normalizeTransaction(transaction);
+    if (normalized.status === "posted") {
+      await db.put("transactions", {
+        ...normalized,
+        status: "void",
+        voidedAt: new Date().toISOString(),
+        voidReason: "Voided as part of batch rollback",
+      });
+      count += 1;
+    }
+  }
+  return count;
 }
 
 export async function importTransactions(
@@ -110,11 +223,22 @@ export async function importTransactions(
   const tx = db.transaction("transactions", "readwrite");
   const store = tx.store;
 
+  const batchId =
+    transactions.length > 0 && transactions.some((t) => t.batchId)
+      ? transactions[0].batchId ?? crypto.randomUUID()
+      : crypto.randomUUID();
+
   const results: Transaction[] = [];
   for (const input of transactions) {
-    const transaction: Transaction = { ...input, id: crypto.randomUUID() };
+    const transaction: Transaction = {
+      ...input,
+      status: "posted",
+      batchId: input.batchId ?? batchId,
+      reversesId: input.reversesId ?? null,
+      id: crypto.randomUUID(),
+    };
     await store.add(transaction);
-    results.push(transaction);
+    results.push(normalizeTransaction(transaction));
   }
 
   await tx.done;

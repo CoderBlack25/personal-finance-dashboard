@@ -31,7 +31,9 @@ describe("App", () => {
       selector({
         loadAccounts: mockLoadAccounts,
         accounts: [],
+        archivedAccounts: [],
         transactions: [],
+        allTransactions: [],
         selectedAccountId: null,
         activeView: "transactions",
         setActiveView: vi.fn(),

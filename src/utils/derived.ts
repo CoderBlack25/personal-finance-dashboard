@@ -1,5 +1,10 @@
 import type { Account, Category, Transaction } from "@/types/types";
 import { computeBalance } from "./money";
+import { isPostedTransaction } from "@/services/db";
+
+function postedTransactions(transactions: Transaction[] = []): Transaction[] {
+  return transactions.filter((transaction) => isPostedTransaction(transaction));
+}
 
 export interface CategoryRollup {
   categoryId: string | null;
@@ -17,6 +22,7 @@ export function computeCategoryRollups(
 ): CategoryRollup[] {
   const { dateFrom, dateTo } = options;
   const rollups = new Map<string | null, CategoryRollup>();
+  const visible = postedTransactions(transactions);
 
   const ensure = (categoryId: string | null): CategoryRollup => {
     const existing = rollups.get(categoryId);
@@ -34,7 +40,7 @@ export function computeCategoryRollups(
     return rollup;
   };
 
-  for (const transaction of transactions) {
+  for (const transaction of visible) {
     if (dateFrom && transaction.date < dateFrom) {
       continue;
     }
@@ -65,10 +71,11 @@ export function computeMonthlySummary(
   month: number, // 1-12
 ): MonthlySummary {
   const monthKey = `${year}-${String(month).padStart(2, "0")}`;
-  const income = transactions
+  const visible = postedTransactions(transactions);
+  const income = visible
     .filter((t) => t.date.startsWith(monthKey) && t.amountInCents > 0)
     .reduce((sum, t) => sum + t.amountInCents, 0);
-  const spending = transactions
+  const spending = visible
     .filter((t) => t.date.startsWith(monthKey) && t.amountInCents < 0)
     .reduce((sum, t) => sum + -t.amountInCents, 0);
   return { income, spending, net: income - spending };
@@ -84,7 +91,8 @@ export interface RunningBalanceEntry {
 export function computeRunningBalances(
   transactions: Transaction[] = [],
 ): RunningBalanceEntry[] {
-  const sorted = [...transactions].sort((a, b) => {
+  const visible = postedTransactions(transactions);
+  const sorted = [...visible].sort((a, b) => {
     if (a.date < b.date) return -1;
     if (a.date > b.date) return 1;
     if (a.id < b.id) return -1;
@@ -121,7 +129,8 @@ export function computeAccountBalances(
   for (const account of accounts) {
     balances.set(account.id, 0);
   }
-  for (const transaction of transactions) {
+  const visible = postedTransactions(transactions);
+  for (const transaction of visible) {
     const current = balances.get(transaction.accountId) ?? 0;
     balances.set(transaction.accountId, current + transaction.amountInCents);
   }
@@ -135,7 +144,7 @@ export function computeAccountBalances(
 }
 
 export function computeTotalBalance(transactions: Transaction[] = []): number {
-  return computeBalance(transactions);
+  return computeBalance(postedTransactions(transactions));
 }
 
 export function isDuplicateCategoryName(
@@ -146,4 +155,39 @@ export function isDuplicateCategoryName(
   return existing.some(
     (category) => category.name.trim().toLowerCase() === target,
   );
+}
+
+export function filterTransactionsForAccounts(
+  transactions: Transaction[] = [],
+  accounts: Account[] = [],
+): Transaction[] {
+  const accountIds = new Set(accounts.map((account) => account.id));
+  return postedTransactions(transactions).filter((transaction) =>
+    accountIds.has(transaction.accountId),
+  );
+}
+
+export function countTransactionsByAccount(
+  transactions: Transaction[] = [],
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const transaction of postedTransactions(transactions)) {
+    counts.set(
+      transaction.accountId,
+      (counts.get(transaction.accountId) ?? 0) + 1,
+    );
+  }
+  return counts;
+}
+
+export function getPostedTransactions(
+  transactions: Transaction[] = [],
+): Transaction[] {
+  return postedTransactions(transactions);
+}
+
+export function getVoidedTransactions(
+  transactions: Transaction[] = [],
+): Transaction[] {
+  return transactions.filter((transaction) => !isPostedTransaction(transaction));
 }

@@ -1,0 +1,22 @@
+
+async function selectActiveAccount(
+  get: () => FinanceStore,
+  set: (
+    partial:
+      | Partial<FinanceStore>
+      | ((state: FinanceStore) => Partial<FinanceStore>),
+  ) => void,
+): Promise<void> {
+  const state = get();
+  const selected = state.accounts.find(
+    (account) => account.id === state.selectedAccountId,
+  );
+  const next = selected ?? state.accounts[0];
+
+  if (!next) {
+    set({ selectedAccountId: null, transactions: [] });
+    return;
+  }
+
+  await get().selectAccount(next.id);
+}

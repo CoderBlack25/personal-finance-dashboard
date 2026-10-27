@@ -6,6 +6,8 @@ import {
   computeMonthlySummary,
   computeRunningBalances,
   computeTotalBalance,
+  countTransactionsByAccount,
+  filterTransactionsForAccounts,
   isDuplicateCategoryName,
 } from "@/utils/derived";
 
@@ -13,6 +15,7 @@ const account = (overrides: Partial<Account> = {}): Account => ({
   id: "acc-1",
   name: "Checking",
   type: "checking",
+  archived: false,
   ...overrides,
 });
 
@@ -247,5 +250,52 @@ describe("isDuplicateCategoryName", () => {
 
   it("ignores surrounding whitespace", () => {
     expect(isDuplicateCategoryName("  Dining  ", categories)).toBe(true);
+  });
+});
+
+describe("filterTransactionsForAccounts", () => {
+  const accounts: Account[] = [
+    account({ id: "acc-1", name: "Checking" }),
+    account({ id: "acc-2", name: "Savings" }),
+  ];
+
+  const transactions: Transaction[] = [
+    transaction({ id: "tx-1", accountId: "acc-1" }),
+    transaction({ id: "tx-2", accountId: "acc-2" }),
+    transaction({ id: "tx-3", accountId: "acc-9" }),
+  ];
+
+  it("keeps only transactions belonging to the given accounts", () => {
+    const filtered = filterTransactionsForAccounts(transactions, accounts);
+
+    expect(filtered.map((item) => item.id)).toEqual(["tx-1", "tx-2"]);
+  });
+
+  it("returns an empty list when there are no accounts", () => {
+    expect(filterTransactionsForAccounts(transactions, [])).toEqual([]);
+  });
+
+  it("returns an empty list when there are no transactions", () => {
+    expect(filterTransactionsForAccounts([], accounts)).toEqual([]);
+  });
+});
+
+describe("countTransactionsByAccount", () => {
+  it("counts transactions per account", () => {
+    const transactions: Transaction[] = [
+      transaction({ id: "tx-1", accountId: "acc-1" }),
+      transaction({ id: "tx-2", accountId: "acc-1" }),
+      transaction({ id: "tx-3", accountId: "acc-2" }),
+    ];
+
+    const counts = countTransactionsByAccount(transactions);
+
+    expect(counts.get("acc-1")).toBe(2);
+    expect(counts.get("acc-2")).toBe(1);
+    expect(counts.get("acc-3")).toBeUndefined();
+  });
+
+  it("returns an empty map when there are no transactions", () => {
+    expect(countTransactionsByAccount([]).size).toBe(0);
   });
 });

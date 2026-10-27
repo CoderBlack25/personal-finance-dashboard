@@ -1,4 +1,4 @@
-import { create } from "zustand";
+﻿import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Account, Category, Transaction } from "@/types/types";
 import {
@@ -10,8 +10,13 @@ import {
   putTransaction,
   getCategories,
   addCategory,
-  importTransactions,
+  importTransactions as importTransactionsDb,
+  updateAccount,
+  deleteAccount as deleteAccountRecord,
+  countTransactionsForAccount,
   CategoryValidationError,
+  voidTransaction,
+  voidTransactionBatch,
 } from "../services/db";
 
 export type View =
@@ -22,6 +27,7 @@ export type View =
 
 interface FinanceStore {
   accounts: Account[];
+  archivedAccounts: Account[];
   transactions: Transaction[];
   allTransactions: Transaction[];
   categories: Category[];
@@ -32,10 +38,15 @@ interface FinanceStore {
 
   loadAccounts: () => Promise<void>;
   loadAllTransactions: () => Promise<void>;
-  createAccount: (input: Omit<Account, "id">) => Promise<void>;
+  createAccount: (input: Omit<Account, "id" | "archived">) => Promise<void>;
+  archiveAccount: (accountId: string) => Promise<string | null>;
+  restoreAccount: (accountId: string) => Promise<string | null>;
+  deleteAccount: (accountId: string) => Promise<string | null>;
   selectAccount: (accountId: string) => Promise<void>;
   createTransaction: (input: Omit<Transaction, "id">) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
+  voidTransaction: (transactionId: string, reason?: string) => Promise<string | null>;
+  voidTransactionBatch: (batchId: string) => Promise<number>;
   importTransactions: (input: {
     accountId: string;
     transactions: Array<{
@@ -44,7 +55,7 @@ interface FinanceStore {
       description: string;
       categoryId: string | null;
     }>;
-  }) => Promise<void>;
+  }) => Promise<string | null>;
   loadCategories: () => Promise<void>;
   createCategory: (input: Omit<Category, "id">) => Promise<string | null>;
   setActiveView: (view: View) => void;
@@ -55,6 +66,7 @@ export const useFinanceStore = create<FinanceStore>()(
     (set, get) => ({
       // The state represents data.
       accounts: [],
+      archivedAccounts: [],
       transactions: [],
       allTransactions: [],
       categories: [],
@@ -67,18 +79,18 @@ export const useFinanceStore = create<FinanceStore>()(
       loadAccounts: async () => {
         set({ isLoading: true, error: null });
         try {
-          const [accounts, categories] = await Promise.all([
+          const [allAccounts, categories] = await Promise.all([
             getAccounts(),
             getCategories(),
           ]);
-          set({ accounts, categories, isLoading: false });
+          set({
+            accounts: allAccounts.filter((account) => !account.archived),
+            archivedAccounts: allAccounts.filter((account) => account.archived),
+            categories,
+            isLoading: false,
+          });
 
-          const state = get();
-          if (state.selectedAccountId) {
-            await get().selectAccount(state.selectedAccountId);
-          } else if (accounts.length > 0) {
-            await get().selectAccount(accounts[0].id);
-          }
+          await selectActiveAccount(get, set);
         } catch {
           set({ error: "Could not load accounts.", isLoading: false });
         }
@@ -101,6 +113,96 @@ export const useFinanceStore = create<FinanceStore>()(
             error: "Could not create account.",
             isLoading: false,
           });
+        }
+      },
+
+      archiveAccount: async (accountId) => {
+        set({ isLoading: true, error: null });
+        try {
+          const account = get().accounts.find((item) => item.id === accountId);
+          if (!account) {
+            set({ isLoading: false });
+            return null;
+          }
+
+          const archived = { ...account, archived: true };
+          await updateAccount(archived);
+
+          set((state) => ({
+            accounts: state.accounts.filter((item) => item.id !== accountId),
+            archivedAccounts: [...state.archivedAccounts, archived],
+            isLoading: false,
+          }));
+
+          if (get().selectedAccountId === accountId) {
+            await selectActiveAccount(get, set);
+          }
+          return null;
+        } catch {
+          const message = "Could not archive account.";
+          set({ error: message, isLoading: false });
+          return message;
+        }
+      },
+
+      restoreAccount: async (accountId) => {
+        set({ isLoading: true, error: null });
+        try {
+          const account = get().archivedAccounts.find(
+            (item) => item.id === accountId,
+          );
+          if (!account) {
+            set({ isLoading: false });
+            return null;
+          }
+
+          const restored = { ...account, archived: false };
+          await updateAccount(restored);
+
+          set((state) => ({
+            accounts: [...state.accounts, restored],
+            archivedAccounts: state.archivedAccounts.filter(
+              (item) => item.id !== accountId,
+            ),
+            isLoading: false,
+          }));
+          return null;
+        } catch {
+          const message = "Could not restore account.";
+          set({ error: message, isLoading: false });
+          return message;
+        }
+      },
+
+      deleteAccount: async (accountId) => {
+        set({ isLoading: true, error: null });
+        try {
+          const transactionCount = await countTransactionsForAccount(accountId);
+          if (transactionCount > 0) {
+            const message =
+              "This account still has transactions. Archive it instead.";
+            set({ error: message, isLoading: false });
+            return message;
+          }
+
+          await deleteAccountRecord(accountId);
+
+          set((state) => ({
+            accounts: state.accounts.filter((item) => item.id !== accountId),
+            archivedAccounts: state.archivedAccounts.filter(
+              (item) => item.id !== accountId,
+            ),
+            isLoading: false,
+          }));
+
+          if (get().selectedAccountId === accountId) {
+            await selectActiveAccount(get, set);
+          }
+          return null;
+        } catch {
+          const message = "Could not delete account.";
+          set({ error: message, isLoading: false });
+          return message;
         }
       },
 
@@ -127,9 +229,16 @@ export const useFinanceStore = create<FinanceStore>()(
       createTransaction: async (input) => {
         set({ isLoading: true, error: null });
         try {
-          const transaction = await addTransaction(input);
+          const transaction = await addTransaction({
+            ...input,
+            batchId: (input as { batchId?: string | null }).batchId ?? null,
+          });
           set((state) => ({
             transactions: [...state.transactions, transaction],
+            // `allTransactions` drives the per-account transaction counts that
+            // decide whether the account delete action is available. Leaving it
+            // stale would offer a delete that the store then refuses.
+            allTransactions: [...state.allTransactions, transaction],
             isLoading: false,
           }));
         } catch {
@@ -145,6 +254,9 @@ export const useFinanceStore = create<FinanceStore>()(
             transactions: state.transactions.map((t) =>
               t.id === transaction.id ? transaction : t,
             ),
+            allTransactions: state.allTransactions.map((t) =>
+              t.id === transaction.id ? transaction : t,
+            ),
             isLoading: false,
           }));
         } catch {
@@ -152,16 +264,65 @@ export const useFinanceStore = create<FinanceStore>()(
         }
       },
 
+      voidTransaction: async (transactionId, reason) => {
+        set({ isLoading: true, error: null });
+        try {
+          const voided = await voidTransaction(transactionId, reason);
+          if (!voided) {
+            set({ isLoading: false });
+            return null;
+          }
+          set((state) => ({
+            transactions: state.transactions.map((t) =>
+              t.id === transactionId ? voided : t,
+            ),
+            allTransactions: state.allTransactions.map((t) =>
+              t.id === transactionId ? voided : t,
+            ),
+            isLoading: false,
+          }));
+          return null;
+        } catch {
+          const message = "Could not void transaction.";
+          set({ error: message, isLoading: false });
+          return message;
+        }
+      },
+
+      voidTransactionBatch: async (batchId) => {
+        set({ isLoading: true, error: null });
+        try {
+          const count = await voidTransactionBatch(batchId);
+          const transactions = await getAllTransactions();
+          const selectedAccountId = get().selectedAccountId;
+          let accountTransactions: Transaction[] = [];
+          if (selectedAccountId) {
+            accountTransactions = await getTransactionsForAccount(selectedAccountId);
+          }
+          set({
+            allTransactions: transactions,
+            transactions: accountTransactions,
+            isLoading: false,
+          });
+          return count;
+        } catch {
+          set({ error: "Could not void import batch.", isLoading: false });
+          return 0;
+        }
+      },
+
       importTransactions: async ({ accountId, transactions }) => {
         set({ isLoading: true, error: null });
         try {
-          const imported = await importTransactions(
+          const batchId = crypto.randomUUID();
+          const imported = await importTransactionsDb(
             transactions.map((t) => ({
               accountId,
               amountInCents: t.amountInCents,
               date: t.date,
               description: t.description,
               categoryId: t.categoryId,
+              batchId,
             })),
           );
           set((state) => ({
@@ -169,8 +330,10 @@ export const useFinanceStore = create<FinanceStore>()(
             allTransactions: [...state.allTransactions, ...imported],
             isLoading: false,
           }));
+          return batchId;
         } catch {
           set({ error: "Could not import transactions.", isLoading: false });
+          return null;
         }
       },
 
@@ -214,3 +377,31 @@ export const useFinanceStore = create<FinanceStore>()(
     },
   ),
 );
+
+
+
+
+
+async function selectActiveAccount(
+  get: () => FinanceStore,
+  set: (
+    partial:
+      | Partial<FinanceStore>
+      | ((state: FinanceStore) => Partial<FinanceStore>),
+  ) => void,
+): Promise<void> {
+  const state = get();
+  const selected = state.accounts.find(
+    (account) => account.id === state.selectedAccountId,
+  );
+  const next = selected ?? state.accounts[0];
+
+  if (!next) {
+    set({ selectedAccountId: null, transactions: [] });
+    return;
+  }
+
+  await get().selectAccount(next.id);
+}
+
+

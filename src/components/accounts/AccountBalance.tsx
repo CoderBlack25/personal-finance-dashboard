@@ -1,15 +1,21 @@
 import { useFinanceStore } from "@/store/store";
 import { computeBalance, formatCentsToDollar } from "@/utils/money";
+import { isPostedTransaction } from "@/services/db";
 
 export function AccountBalance() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
-  const transactions = useFinanceStore((state) => state.transactions);
+  const allTransactions = useFinanceStore((state) => state.allTransactions);
 
   if (!selectedAccountId) {
     return null;
   }
 
-  const balance = computeBalance(transactions);
+  const accountTransactions = allTransactions.filter(
+    (transaction) =>
+      transaction.accountId === selectedAccountId &&
+      isPostedTransaction(transaction),
+  );
+  const balance = computeBalance(accountTransactions);
   const isPositive = balance >= 0;
 
   return (

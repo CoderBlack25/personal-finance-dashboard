@@ -4,7 +4,9 @@ import { useFinanceStore } from "@/store/store";
 import { formatCentsToDollar } from "@/utils/money";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Search, List, Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Search, List, Pencil, RotateCcw, XCircle } from "lucide-react";
+import { isPostedTransaction } from "@/services/db";
 
 function debounce<Args extends unknown[]>(
   func: (...args: Args) => void,
@@ -20,7 +22,9 @@ function debounce<Args extends unknown[]>(
 export function TransactionList() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
   const transactions = useFinanceStore((state) => state.transactions);
+  const allTransactions = useFinanceStore((state) => state.allTransactions);
   const categories = useFinanceStore((state) => state.categories);
+  const voidTransaction = useFinanceStore((state) => state.voidTransaction);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
@@ -28,11 +32,22 @@ export function TransactionList() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [showVoided, setShowVoided] = useState(false);
 
   useEffect(() => {
     const handler = debounce(() => setDebouncedSearch(search), 300);
     handler();
   }, [search]);
+
+  useEffect(() => {
+    setShowVoided(false);
+    setSearch("");
+    setDebouncedSearch("");
+    setDateFrom("");
+    setDateTo("");
+    setCategoryId(null);
+    setEditingId(null);
+  }, [selectedAccountId]);
 
   if (!selectedAccountId) {
     return (
@@ -46,21 +61,31 @@ export function TransactionList() {
     );
   }
 
-  if (transactions.length === 0) {
+  const sourceTransactions = showVoided
+    ? allTransactions.filter(
+        (transaction) => transaction.accountId === selectedAccountId,
+      )
+    : transactions;
+
+  if (sourceTransactions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <List className="w-8 h-8 text-muted-foreground mb-2" />
         <p className="text-sm text-muted-foreground">
-          No transactions logged yet for this account
+          {showVoided
+            ? "No transactions found for this account"
+            : "No transactions logged yet for this account"}
         </p>
         <p className="text-xs text-muted-foreground">
-          Start by adding a transaction above.
+          {showVoided
+            ? "Try disabling 'Show voided' to view active transactions."
+            : "Start by adding a transaction above."}
         </p>
       </div>
     );
   }
 
-  const filtered = transactions.filter((transaction) => {
+  const filtered = sourceTransactions.filter((transaction) => {
     if (
       debouncedSearch &&
       !transaction.description
@@ -78,6 +103,9 @@ export function TransactionList() {
     if (categoryId !== null && transaction.categoryId !== categoryId) {
       return false;
     }
+    if (!showVoided && !isPostedTransaction(transaction)) {
+      return false;
+    }
     return true;
   });
 
@@ -87,11 +115,26 @@ export function TransactionList() {
     return 0;
   });
 
+  const handleVoid = async (transactionId: string) => {
+    await voidTransaction(transactionId, "Voided by user");
+  };
+
   return (
     <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
       <div className="flex flex-col lg:flex-row lg:items-end lg:gap-6 gap-4 mb-6">
         <div className="flex-1 min-w-0">
           <h2 className="text-lg font-semibold">Transactions</h2>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant={showVoided ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowVoided((prev) => !prev)}
+          >
+            {showVoided ? "Hide voided" : "Show voided"}
+          </Button>
         </div>
 
         <form
@@ -188,13 +231,19 @@ export function TransactionList() {
               </th>
               <th
                 scope="col"
-                className="text-right text-xs text-muted-foreground pb-3 font-medium"
+                className="text-right text-xs text-muted-foreground pb-3 font-medium pr-4"
               >
                 Amount
               </th>
               <th
                 scope="col"
-                className="text-right text-xs text-muted-foreground pb-3 font-medium w-12"
+                className="text-left text-xs text-muted-foreground pb-3 font-medium pl-4"
+              >
+                Status
+              </th>
+              <th
+                scope="col"
+                className="text-right text-xs text-muted-foreground pb-3 font-medium w-24"
               >
                 <span className="sr-only">Actions</span>
               </th>
@@ -204,7 +253,7 @@ export function TransactionList() {
             {sortedByDateDescending.map((transaction) =>
               editingId === transaction.id ? (
                 <tr key={transaction.id}>
-                  <td colSpan={4} className="py-3">
+                  <td colSpan={5} className="py-3">
                     <EditTransactionForm
                       transaction={transaction}
                       onDone={() => setEditingId(null)}
@@ -222,21 +271,53 @@ export function TransactionList() {
                   <td className="py-3 text-sm text-foreground">
                     {transaction.description}
                   </td>
-                  <td className="py-3 text-right font-mono tabular-nums text-sm text-foreground">
+                  <td className="py-3 text-right font-mono tabular-nums text-sm text-foreground pr-4">
                     {formatCentsToDollar(transaction.amountInCents, {
                       alwaysShowSign: true,
                     })}
                   </td>
+                  <td className="py-3 text-sm pl-4">
+                    {isPostedTransaction(transaction) ? (
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                        Posted
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                        Voided
+                      </span>
+                    )}
+                  </td>
                   <td className="py-2 text-right">
-                    <button
-                      type="button"
-                      onClick={() => setEditingId(transaction.id)}
-                      aria-label={`Edit ${transaction.description}`}
-                      title="Edit transaction"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(transaction.id)}
+                        aria-label={`Edit ${transaction.description}`}
+                        title="Edit transaction"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!isPostedTransaction(transaction)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleVoid(transaction.id)}
+                        aria-label={`Void ${transaction.description}`}
+                        title={
+                          isPostedTransaction(transaction)
+                            ? "Void transaction"
+                            : "Already voided"
+                        }
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!isPostedTransaction(transaction)}
+                      >
+                        {isPostedTransaction(transaction) ? (
+                          <XCircle className="h-4 w-4" />
+                        ) : (
+                          <RotateCcw className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ),

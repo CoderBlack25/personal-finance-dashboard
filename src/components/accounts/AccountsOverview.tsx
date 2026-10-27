@@ -1,5 +1,9 @@
 import { useFinanceStore } from "@/store/store";
-import { computeAccountBalances, computeTotalBalance } from "@/utils/derived";
+import {
+  computeAccountBalances,
+  computeTotalBalance,
+  filterTransactionsForAccounts,
+} from "@/utils/derived";
 import { formatCentsToDollar } from "@/utils/money";
 import { Badge } from "@/components/ui/badge";
 
@@ -8,8 +12,12 @@ export function AccountsOverview() {
   const allTransactions = useFinanceStore((state) => state.allTransactions);
   const isLoading = useFinanceStore((state) => state.isLoading);
 
-  const balances = computeAccountBalances(accounts, allTransactions);
-  const total = computeTotalBalance(allTransactions);
+  const activeTransactions = filterTransactionsForAccounts(
+    allTransactions,
+    accounts,
+  );
+  const balances = computeAccountBalances(accounts, activeTransactions);
+  const total = computeTotalBalance(activeTransactions);
 
   if (isLoading) {
     return (
