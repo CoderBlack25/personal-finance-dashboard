@@ -50,6 +50,8 @@ export function MonthlySummary() {
   const rollups = computeCategoryRollups(transactions, categories, {
     dateFrom,
     dateTo,
+    year,
+    month,
   });
   const summary = computeMonthlySummary(transactions, year, month);
   const monthLabel = format(new Date(year, month - 1), "MMMM yyyy");

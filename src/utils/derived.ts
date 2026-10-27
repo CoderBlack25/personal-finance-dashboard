@@ -18,11 +18,12 @@ export interface CategoryRollup {
 export function computeCategoryRollups(
   transactions: Transaction[] = [],
   categories: Category[] = [],
-  options: { dateFrom?: string; dateTo?: string } = {},
+  options: { dateFrom?: string; dateTo?: string; year?: number; month?: number } = {},
 ): CategoryRollup[] {
-  const { dateFrom, dateTo } = options;
+  const { dateFrom, dateTo, year, month } = options;
   const rollups = new Map<string | null, CategoryRollup>();
   const visible = postedTransactions(transactions);
+  const monthKey = year && month ? `${year}-${String(month).padStart(2, "0")}` : null;
 
   const ensure = (categoryId: string | null): CategoryRollup => {
     const existing = rollups.get(categoryId);
@@ -41,6 +42,11 @@ export function computeCategoryRollups(
   };
 
   for (const transaction of visible) {
+    if (monthKey && !dateFrom && !dateTo) {
+      if (!transaction.date.startsWith(monthKey)) {
+        continue;
+      }
+    }
     if (dateFrom && transaction.date < dateFrom) {
       continue;
     }
