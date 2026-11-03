@@ -12,6 +12,8 @@ import {
   computeRunningBalances,
 } from "@/utils/derived";
 
+const ALL_ACCOUNTS = "";
+
 function debounce<Args extends unknown[]>(
   func: (...args: Args) => void,
   wait: number,
@@ -25,6 +27,7 @@ function debounce<Args extends unknown[]>(
 
 export function TransactionList() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
+  const accounts = useFinanceStore((state) => state.accounts);
   const transactions = useFinanceStore((state) => state.transactions);
   const allTransactions = useFinanceStore((state) => state.allTransactions);
   const categories = useFinanceStore((state) => state.categories);
@@ -35,6 +38,9 @@ export function TransactionList() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [accountFilterId, setAccountFilterId] = useState(
+    selectedAccountId ?? ALL_ACCOUNTS,
+  );
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [showVoided, setShowVoided] = useState(false);
 
@@ -49,55 +55,33 @@ export function TransactionList() {
     setDebouncedSearch("");
     setDateFrom("");
     setDateTo("");
+    setAccountFilterId(selectedAccountId ?? ALL_ACCOUNTS);
     setCategoryId(null);
     setEditingId(null);
   }, [selectedAccountId]);
 
-  if (!selectedAccountId) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Search className="w-8 h-8 text-muted-foreground mb-2" />
-        <p className="text-sm text-muted-foreground">No account selected.</p>
-        <p className="text-xs text-muted-foreground">
-          Select an account from the sidebar to view transactions.
-        </p>
-      </div>
-    );
-  }
-
-  const sourceTransactions = showVoided
-    ? allTransactions.filter(
-        (transaction) => transaction.accountId === selectedAccountId,
-      )
-    : transactions;
-
-  const accountTransactions =
-    allTransactions &&
-    allTransactions.some((t) => t.accountId === selectedAccountId)
-      ? allTransactions.filter((t) => t.accountId === selectedAccountId)
-      : transactions;
-
-  const runningBalances = computeRunningBalances(accountTransactions);
-  const runningBalanceMap = new Map<string, number>(
-    runningBalances.map((entry) => [entry.transactionId, entry.balanceAfter]),
+  const availableTransactions =
+    allTransactions.length > 0 ? allTransactions : transactions;
+  const accountScopedTransactions = availableTransactions.filter(
+    (transaction) =>
+      accountFilterId === ALL_ACCOUNTS ||
+      transaction.accountId === accountFilterId,
   );
-
-  if (sourceTransactions.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <List className="w-8 h-8 text-muted-foreground mb-2" />
-        <p className="text-sm text-muted-foreground">
-          {showVoided
-            ? "No transactions found for this account"
-            : "No transactions logged yet for this account"}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {showVoided
-            ? "Try disabling 'Show voided' to view active transactions."
-            : "Start by adding a transaction above."}
-        </p>
-      </div>
-    );
+  const sourceTransactions = showVoided
+    ? accountScopedTransactions
+    : accountScopedTransactions.filter(isPostedTransaction);
+  const transactionsByAccount = new Map<string, typeof availableTransactions>();
+  for (const transaction of availableTransactions) {
+    const accountTransactions =
+      transactionsByAccount.get(transaction.accountId) ?? [];
+    accountTransactions.push(transaction);
+    transactionsByAccount.set(transaction.accountId, accountTransactions);
+  }
+  const runningBalanceMap = new Map<string, number>();
+  for (const accountTransactions of transactionsByAccount.values()) {
+    for (const entry of computeRunningBalances(accountTransactions)) {
+      runningBalanceMap.set(entry.transactionId, entry.balanceAfter);
+    }
   }
 
   const filtered = sourceTransactions.filter((transaction) => {
@@ -116,9 +100,6 @@ export function TransactionList() {
       return false;
     }
     if (categoryId !== null && transaction.categoryId !== categoryId) {
-      return false;
-    }
-    if (!showVoided && !isPostedTransaction(transaction)) {
       return false;
     }
     return true;
@@ -154,6 +135,29 @@ export function TransactionList() {
           className="flex flex-wrap gap-3 items-end"
           onChange={(event) => event.preventDefault()}
         >
+          <div className="flex flex-col gap-1 min-w-40">
+            <label
+              htmlFor="transaction-filter-account"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              Account
+            </label>
+            <Select
+              id="transaction-filter-account"
+              value={accountFilterId}
+              onChange={(event) => {
+                setAccountFilterId(event.target.value);
+                setEditingId(null);
+              }}
+            >
+              <option value={ALL_ACCOUNTS}>All accounts</option>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </Select>
+          </div>
           <div className="flex flex-col gap-1 min-w-50">
             <label
               htmlFor="transaction-search"
@@ -226,8 +230,23 @@ export function TransactionList() {
         </form>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <List className="w-8 h-8 text-muted-foreground mb-2" />
+          <p className="text-sm text-muted-foreground">
+            {showVoided
+              ? "No transactions found for this filter"
+              : "No transactions logged yet for this filter"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {showVoided
+              ? "Try changing the account filter or disabling 'Show voided'."
+              : "Try changing the filters or add a transaction."}
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
           <thead>
             <tr>
               <th
@@ -350,8 +369,9 @@ export function TransactionList() {
               ),
             )}
           </tbody>
-        </table>
-      </div>
+          </table>
+        </div>
+      )}
     </section>
   );
 }

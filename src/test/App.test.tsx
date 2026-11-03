@@ -34,6 +34,7 @@ describe("App", () => {
         archivedAccounts: [],
         transactions: [],
         allTransactions: [],
+        categories: [],
         selectedAccountId: null,
         activeView: "transactions",
         setActiveView: vi.fn(),

@@ -29,24 +29,91 @@ vi.mock("@/store/store", () => {
 function mockState(state: {
   selectedAccountId: string | null;
   transactions: any[];
+  allTransactions?: any[];
+  accounts?: any[];
   categories?: any[];
 }) {
   vi.mocked(useFinanceStore).mockImplementation((selector: any) =>
-    selector({ categories: [], ...state }),
+    selector({
+      accounts: state.selectedAccountId
+        ? [{ id: state.selectedAccountId, name: "Checking" }]
+        : [],
+      allTransactions: state.allTransactions ?? state.transactions,
+      categories: [],
+      ...state,
+    }),
   );
 }
 
 describe("TransactionList", () => {
-  it("prompts to add an account when none is selected", () => {
+  it("shows all accounts when none is selected", () => {
     mockState({ selectedAccountId: null, transactions: [] });
     render(<TransactionList />);
-   expect(screen.getByText(/no account selected/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Account")).toHaveValue("");
+    expect(screen.getByRole("option", { name: "All accounts" })).toBeInTheDocument();
   });
 
   it("shows an empty state when an account is selected but has no transactions", () => {
     mockState({ selectedAccountId: "acc_1", transactions: [] });
     render(<TransactionList />);
     expect(screen.getByText(/no transactions logged yet/i)).toBeInTheDocument();
+  });
+
+  it("filters transactions by account and can show transactions from all accounts", async () => {
+    mockState({
+      selectedAccountId: "acc_1",
+      transactions: [
+        {
+          id: "tx_1",
+          accountId: "acc_1",
+          categoryId: null,
+          amountInCents: 1000,
+          date: "2026-08-01",
+          description: "Checking transaction",
+        },
+      ],
+      accounts: [
+        { id: "acc_1", name: "Checking" },
+        { id: "acc_2", name: "Savings" },
+      ],
+      allTransactions: [
+        {
+          id: "tx_1",
+          accountId: "acc_1",
+          categoryId: null,
+          amountInCents: 1000,
+          date: "2026-08-01",
+          description: "Checking transaction",
+        },
+        {
+          id: "tx_2",
+          accountId: "acc_2",
+          categoryId: null,
+          amountInCents: -2000,
+          date: "2026-08-02",
+          description: "Savings transaction",
+        },
+      ],
+    });
+    render(<TransactionList />);
+
+    const user = userEvent.setup();
+    const accountFilter = screen.getByLabelText("Account");
+    expect(accountFilter).toHaveValue("acc_1");
+    expect(screen.getByText("Checking transaction")).toBeInTheDocument();
+    expect(screen.queryByText("Savings transaction")).not.toBeInTheDocument();
+
+    await user.selectOptions(accountFilter, "acc_2");
+    expect(screen.getByText("Savings transaction")).toBeInTheDocument();
+    expect(screen.queryByText("Checking transaction")).not.toBeInTheDocument();
+
+    await user.selectOptions(accountFilter, "");
+    expect(screen.getByText("Checking transaction")).toBeInTheDocument();
+    expect(screen.getByText("Savings transaction")).toBeInTheDocument();
+    const savingsRow = screen.getByText("Savings transaction").closest("tr")!;
+    expect(within(savingsRow).getAllByRole("cell")[3]).toHaveTextContent(
+      "-$20.00",
+    );
   });
 
   it("renders one row per transaction with formatted amounts", () => {
