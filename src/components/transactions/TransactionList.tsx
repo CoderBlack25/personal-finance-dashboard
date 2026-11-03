@@ -19,17 +19,6 @@ import {
 
 const ALL_ACCOUNTS = "";
 
-function debounce<Args extends unknown[]>(
-  func: (...args: Args) => void,
-  wait: number,
-) {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
-  return (...args: Args) => {
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-}
-
 export function TransactionList() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
   const { data: accountData, error: accountsError } = useAccounts();
@@ -60,11 +49,8 @@ export function TransactionList() {
   } = transactionFilters;
 
   useEffect(() => {
-    const handler = debounce(
-      () => setDebouncedSearch(searchQuery),
-      300,
-    );
-    handler();
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
   }, [searchQuery]);
 
   useEffect(() => {
