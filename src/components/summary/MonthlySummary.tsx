@@ -53,7 +53,10 @@ export function MonthlySummary() {
     year,
     month,
   });
-  const summary = computeMonthlySummary(transactions, year, month);
+  const summary = computeMonthlySummary(transactions, year, month, {
+    dateFrom,
+    dateTo,
+  });
   const monthLabel = format(new Date(year, month - 1), "MMMM yyyy");
 
   const incomeLabel = formatCentsToDollar(summary.income, {

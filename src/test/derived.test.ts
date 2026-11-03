@@ -143,6 +143,37 @@ describe("computeMonthlySummary", () => {
 
     expect(computeMonthlySummary(transactions, 2026, 8).net).toBe(-4000);
   });
+
+  it("uses an inclusive date range for totals and overrides the selected month", () => {
+    const transactions: Transaction[] = [
+      transaction({ id: "before", amountInCents: 5000, date: "2026-07-31" }),
+      transaction({ id: "start", amountInCents: 10000, date: "2026-08-01" }),
+      transaction({ id: "middle", amountInCents: -2500, date: "2026-08-15" }),
+      transaction({ id: "end", amountInCents: -1500, date: "2026-09-01" }),
+      transaction({ id: "after", amountInCents: -9000, date: "2026-09-02" }),
+    ];
+
+    expect(
+      computeMonthlySummary(transactions, 2026, 8, {
+        dateFrom: "2026-08-01",
+        dateTo: "2026-09-01",
+      }),
+    ).toEqual({ income: 10000, spending: 4000, net: 6000 });
+  });
+
+  it("applies a one-sided date range to totals", () => {
+    const transactions: Transaction[] = [
+      transaction({ id: "before", amountInCents: 5000, date: "2026-08-01" }),
+      transaction({ id: "from", amountInCents: -2000, date: "2026-08-10" }),
+      transaction({ id: "after", amountInCents: -3000, date: "2026-08-20" }),
+    ];
+
+    expect(
+      computeMonthlySummary(transactions, 2026, 8, {
+        dateFrom: "2026-08-10",
+      }),
+    ).toEqual({ income: 0, spending: 5000, net: -5000 });
+  });
 });
 
 describe("computeRunningBalances", () => {
