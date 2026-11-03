@@ -16,6 +16,9 @@ describe("dollarsStringToCents", () => {
     ["0.05", 5],
     ["1000", 100000],
     ["9.9", 990],
+    ["-0.50", -50],
+    ["-0.01", -1],
+    ["-19.99", -1999],
   ])("converts %s to %i cents", (input, expected) => {
     expect(dollarsStringToCents(input)).toBe(expected);
   });

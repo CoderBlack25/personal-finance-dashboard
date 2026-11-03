@@ -239,6 +239,7 @@ describe("parseCsvAmount", () => {
   it("parses negative amounts", () => {
     expect(parseCsvAmount("-50.00")).toBe(-5000);
     expect(parseCsvAmount("-19.99")).toBe(-1999);
+    expect(parseCsvAmount("-0.50")).toBe(-50);
   });
 
   it("handles amounts with currency symbols", () => {
@@ -247,6 +248,8 @@ describe("parseCsvAmount", () => {
 
   it("rounds to nearest cent", () => {
     expect(parseCsvAmount("10.005")).toBe(1001);
+    expect(parseCsvAmount("-10.005")).toBe(-1001);
+    expect(parseCsvAmount("0.104")).toBe(10);
   });
 });
 

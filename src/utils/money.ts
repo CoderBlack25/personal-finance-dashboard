@@ -6,9 +6,28 @@ export function splitAbsoluteCents(absCents: number): {
 }
 
 export function dollarsStringToCents(dollars: string): number {
-  const [wholePart, decimalPart = ""] = dollars.split(".");
-  const paddedDecimal = decimalPart.padEnd(2, "0").slice(0, 2);
-  return Number(wholePart) * 100 + Number(paddedDecimal);
+  const match = /^([+-]?)(\d+)(?:\.(\d+))?$/.exec(dollars.trim());
+  if (!match) {
+    throw new Error("Amount must be a decimal number.");
+  }
+
+  const [, sign, wholePart, decimalPart = ""] = match;
+  const centsPart = decimalPart.slice(0, 2).padEnd(2, "0");
+  let cents = BigInt(wholePart) * 100n + BigInt(centsPart);
+  if (decimalPart.length > 2 && decimalPart[2] >= "5") {
+    cents += 1n;
+  }
+  if (sign === "-") {
+    cents = -cents;
+  }
+
+  if (
+    cents > BigInt(Number.MAX_SAFE_INTEGER) ||
+    cents < BigInt(Number.MIN_SAFE_INTEGER)
+  ) {
+    throw new RangeError("Amount exceeds the supported range.");
+  }
+  return Number(cents);
 }
 
 export function formatCentsToDollar(

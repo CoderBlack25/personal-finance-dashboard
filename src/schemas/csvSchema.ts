@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { dollarsStringToCents } from "@/utils/money";
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -71,7 +72,7 @@ export function validateCsvRows(
 
 export function parseCsvAmount(amount: string): number {
   const cleaned = amount.replace(/[$,]/g, "");
-  return Math.round(Number(cleaned) * 100);
+  return dollarsStringToCents(cleaned);
 }
 
 export function isValidDate(dateString: string): boolean {
