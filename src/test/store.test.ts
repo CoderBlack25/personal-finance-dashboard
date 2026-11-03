@@ -718,4 +718,90 @@ describe("store", () => {
     expect(failure).toBe("Could not archive account.");
     expect(state.error).toBe("Could not archive account.");
   });
+
+  it("updates an existing account in store", async () => {
+    const existingAccount: Account = {
+      id: "account-1",
+      name: "Checking",
+      type: "checking",
+      archived: false,
+    };
+
+    useFinanceStore.setState({
+      accounts: [existingAccount],
+      selectedAccountId: "account-1",
+    });
+
+    vi.mocked(updateAccount).mockResolvedValue(undefined);
+
+    const updated = {
+      ...existingAccount,
+      name: "Updated Checking",
+      type: "savings" as const,
+    };
+
+    const failure = await useFinanceStore.getState().updateAccount(updated);
+
+    const state = useFinanceStore.getState();
+
+    expect(failure).toBeNull();
+    expect(updateAccount).toHaveBeenCalledWith(updated);
+    expect(state.accounts).toEqual([updated]);
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBeNull();
+  });
+
+  it("updates an existing archived account in store", async () => {
+    const archivedAccount: Account = {
+      id: "account-2",
+      name: "Old Credit",
+      type: "credit",
+      archived: true,
+    };
+
+    useFinanceStore.setState({
+      archivedAccounts: [archivedAccount],
+    });
+
+    vi.mocked(updateAccount).mockResolvedValue(undefined);
+
+    const updated = {
+      ...archivedAccount,
+      name: "Renamed Old Credit",
+    };
+
+    const failure = await useFinanceStore.getState().updateAccount(updated);
+
+    const state = useFinanceStore.getState();
+
+    expect(failure).toBeNull();
+    expect(updateAccount).toHaveBeenCalledWith(updated);
+    expect(state.archivedAccounts).toEqual([updated]);
+  });
+
+  it("sets an error when updating an account fails", async () => {
+    const account: Account = {
+      id: "account-1",
+      name: "Checking",
+      type: "checking",
+      archived: false,
+    };
+
+    useFinanceStore.setState({
+      accounts: [account],
+    });
+
+    vi.mocked(updateAccount).mockRejectedValue(new Error("Database error"));
+
+    const failure = await useFinanceStore.getState().updateAccount({
+      ...account,
+      name: "New Name",
+    });
+
+    const state = useFinanceStore.getState();
+
+    expect(failure).toBe("Could not update account.");
+    expect(state.error).toBe("Could not update account.");
+    expect(state.accounts).toEqual([account]);
+  });
 });

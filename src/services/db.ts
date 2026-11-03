@@ -134,14 +134,23 @@ export async function addTransaction(
   input: Omit<Transaction, "id">,
 ): Promise<Transaction> {
   const db = await getDB();
+  const tx = db.transaction("transactions", "readwrite");
+  const existingTransactions = await tx.store.getAll();
+  const latestCreatedAt = existingTransactions.reduce(
+    (latest, transaction) =>
+      Math.max(latest, Date.parse(transaction.createdAt ?? "") || 0),
+    0,
+  );
   const transaction: Transaction = {
     ...input,
+    createdAt: new Date(Math.max(Date.now(), latestCreatedAt + 1)).toISOString(),
     status: "posted",
     batchId: input.batchId ?? null,
     reversesId: input.reversesId ?? null,
     id: crypto.randomUUID(),
   };
-  await db.add("transactions", transaction);
+  await tx.store.add(transaction);
+  await tx.done;
   return transaction;
 }
 
@@ -222,6 +231,12 @@ export async function importTransactions(
   const db = await getDB();
   const tx = db.transaction("transactions", "readwrite");
   const store = tx.store;
+  const existingTransactions = await store.getAll();
+  let latestCreatedAt = existingTransactions.reduce(
+    (latest, transaction) =>
+      Math.max(latest, Date.parse(transaction.createdAt ?? "") || 0),
+    0,
+  );
 
   const batchId =
     transactions.length > 0 && transactions.some((t) => t.batchId)
@@ -230,8 +245,10 @@ export async function importTransactions(
 
   const results: Transaction[] = [];
   for (const input of transactions) {
+    latestCreatedAt = Math.max(Date.now(), latestCreatedAt + 1);
     const transaction: Transaction = {
       ...input,
+      createdAt: new Date(latestCreatedAt).toISOString(),
       status: "posted",
       batchId: input.batchId ?? batchId,
       reversesId: input.reversesId ?? null,

@@ -22,6 +22,7 @@ export type Transaction = {
   amountInCents: number;
   date: string;
   description: string;
+  createdAt?: string;
   status?: TransactionStatus;
   voidedAt?: string;
   voidReason?: string;

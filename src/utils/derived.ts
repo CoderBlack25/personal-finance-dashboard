@@ -94,17 +94,28 @@ export interface RunningBalanceEntry {
   balanceAfter: number;
 }
 
+export function compareTransactionChronologically(
+  a: Transaction,
+  b: Transaction,
+): number {
+  if (a.date !== b.date) {
+    return a.date < b.date ? -1 : 1;
+  }
+  const aCreatedAt = a.createdAt ?? "";
+  const bCreatedAt = b.createdAt ?? "";
+  if (aCreatedAt !== bCreatedAt) {
+    return aCreatedAt < bCreatedAt ? -1 : 1;
+  }
+  if (a.id < b.id) return -1;
+  if (a.id > b.id) return 1;
+  return 0;
+}
+
 export function computeRunningBalances(
   transactions: Transaction[] = [],
 ): RunningBalanceEntry[] {
   const visible = postedTransactions(transactions);
-  const sorted = [...visible].sort((a, b) => {
-    if (a.date < b.date) return -1;
-    if (a.date > b.date) return 1;
-    if (a.id < b.id) return -1;
-    if (a.id > b.id) return 1;
-    return 0;
-  });
+  const sorted = [...visible].sort(compareTransactionChronologically);
 
   const entries: RunningBalanceEntry[] = [];
   let balance = 0;

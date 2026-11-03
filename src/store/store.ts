@@ -1,4 +1,4 @@
-﻿import { create } from "zustand";
+import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Account, Category, Transaction } from "@/types/types";
 import {
@@ -11,7 +11,7 @@ import {
   getCategories,
   addCategory,
   importTransactions as importTransactionsDb,
-  updateAccount,
+  updateAccount as updateAccountRecord,
   deleteAccount as deleteAccountRecord,
   countTransactionsForAccount,
   CategoryValidationError,
@@ -39,6 +39,7 @@ interface FinanceStore {
   loadAccounts: () => Promise<void>;
   loadAllTransactions: () => Promise<void>;
   createAccount: (input: Omit<Account, "id" | "archived">) => Promise<void>;
+  updateAccount: (account: Account) => Promise<string | null>;
   archiveAccount: (accountId: string) => Promise<string | null>;
   restoreAccount: (accountId: string) => Promise<string | null>;
   deleteAccount: (accountId: string) => Promise<string | null>;
@@ -116,6 +117,27 @@ export const useFinanceStore = create<FinanceStore>()(
         }
       },
 
+      updateAccount: async (account) => {
+        set({ isLoading: true, error: null });
+        try {
+          await updateAccountRecord(account);
+          set((state) => ({
+            accounts: state.accounts.map((item) =>
+              item.id === account.id ? account : item,
+            ),
+            archivedAccounts: state.archivedAccounts.map((item) =>
+              item.id === account.id ? account : item,
+            ),
+            isLoading: false,
+          }));
+          return null;
+        } catch {
+          const message = "Could not update account.";
+          set({ error: message, isLoading: false });
+          return message;
+        }
+      },
+
       archiveAccount: async (accountId) => {
         set({ isLoading: true, error: null });
         try {
@@ -126,7 +148,7 @@ export const useFinanceStore = create<FinanceStore>()(
           }
 
           const archived = { ...account, archived: true };
-          await updateAccount(archived);
+          await updateAccountRecord(archived);
 
           set((state) => ({
             accounts: state.accounts.filter((item) => item.id !== accountId),
@@ -157,7 +179,7 @@ export const useFinanceStore = create<FinanceStore>()(
           }
 
           const restored = { ...account, archived: false };
-          await updateAccount(restored);
+          await updateAccountRecord(restored);
 
           set((state) => ({
             accounts: [...state.accounts, restored],

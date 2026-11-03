@@ -167,6 +167,34 @@ describe("computeRunningBalances", () => {
     expect(entries.map((e) => e.balanceAfter)).toEqual([1000, 600, 500]);
   });
 
+  it("uses creation time to order transactions on the same date", () => {
+    const transactions: Transaction[] = [
+      transaction({
+        id: "tx-late",
+        date: "2026-08-05",
+        createdAt: "2026-08-05T12:00:00.000Z",
+        amountInCents: -2500,
+      }),
+      transaction({
+        id: "tx-early",
+        date: "2026-08-05",
+        createdAt: "2026-08-05T09:00:00.000Z",
+        amountInCents: 10000,
+      }),
+    ];
+
+    const entries = computeRunningBalances(transactions);
+
+    expect(entries.map((entry) => entry.transactionId)).toEqual([
+      "tx-early",
+      "tx-late",
+    ]);
+    expect(entries.map((entry) => entry.balanceAfter)).toEqual([
+      10000,
+      7500,
+    ]);
+  });
+
   it("can go negative", () => {
     const transactions: Transaction[] = [
       transaction({ id: "tx-1", date: "2026-08-01", amountInCents: 100 }),

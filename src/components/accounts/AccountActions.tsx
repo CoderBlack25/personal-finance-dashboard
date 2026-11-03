@@ -3,6 +3,7 @@ import { MoreHorizontal } from "lucide-react";
 import { useFinanceStore } from "@/store/store";
 import type { Account } from "@/types/types";
 import { Button } from "@/components/ui/button";
+import { EditAccountForm } from "@/components/accounts/EditAccountForm";
 import {
   Dialog,
   DialogBackdrop,
@@ -41,6 +42,7 @@ export function AccountActions({
   const restoreAccount = useFinanceStore((state) => state.restoreAccount);
   const deleteAccount = useFinanceStore((state) => state.deleteAccount);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [action, setAction] = useState<ConfirmAction>("archive");
   const [error, setError] = useState<string | null>(null);
 
@@ -82,6 +84,13 @@ export function AccountActions({
             className={dropdownMenuPositionerVariants()}
           >
             <DropdownMenuContent className={dropdownMenuContentVariants()}>
+              <DropdownMenuItem
+                className={dropdownMenuItemVariants()}
+                onClick={() => setEditOpen(true)}
+              >
+                Edit
+              </DropdownMenuItem>
+
               {isArchived ? (
                 <DropdownMenuItem
                   className={dropdownMenuItemVariants()}
@@ -169,6 +178,29 @@ export function AccountActions({
                 {action === "delete" ? "Delete" : "Archive"}
               </Button>
             </div>
+          </DialogContent>
+        </DialogPortal>
+      </Dialog>
+
+      <Dialog
+        open={editOpen}
+        onOpenChange={(next) => {
+          if (!next) {
+            setEditOpen(false);
+          }
+        }}
+      >
+        <DialogPortal>
+          <DialogBackdrop />
+          <DialogContent>
+            <DialogTitle>Edit {account.name}</DialogTitle>
+            <DialogDescription>
+              Update this account's name or type.
+            </DialogDescription>
+            <EditAccountForm
+              account={account}
+              onDone={() => setEditOpen(false)}
+            />
           </DialogContent>
         </DialogPortal>
       </Dialog>

@@ -1,27 +1,16 @@
 import { useForm } from "react-hook-form";
 import { useFinanceStore } from "@/store/store";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import {
+  ACCOUNT_TYPES,
+  ACCOUNT_TYPE_LABELS,
+  accountFormSchema,
+  type AccountFormValues,
+} from "@/schemas/accountSchema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { X } from "lucide-react";
-
-const ACCOUNT_TYPES = ["checking", "savings", "credit", "cash"] as const;
-
-const ACCOUNT_TYPE_LABELS: Record<(typeof ACCOUNT_TYPES)[number], string> = {
-  checking: "Checking",
-  savings: "Savings",
-  credit: "Credit card",
-  cash: "Cash",
-};
-
-const accountFormSchema = z.object({
-  name: z.string().trim().min(1, "Give this account a name."),
-  type: z.enum(ACCOUNT_TYPES),
-});
-
-type AccountFormValues = z.infer<typeof accountFormSchema>;
 
 interface AccountFormProps {
   onClose?: () => void;
@@ -82,7 +71,7 @@ export function AccountForm({ onClose }: AccountFormProps) {
           <Input
             id="account-name"
             type="text"
-            placeholder="e.g Jude checking"
+            placeholder="e.g John Doe"
             aria-invalid={!!errors.name}
             aria-describedby={errors.name ? "account-name-error" : undefined}
             variant={errors.name ? "error" : undefined}

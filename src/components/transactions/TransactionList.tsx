@@ -7,6 +7,10 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Search, List, Pencil, RotateCcw, XCircle } from "lucide-react";
 import { isPostedTransaction } from "@/services/db";
+import {
+  compareTransactionChronologically,
+  computeRunningBalances,
+} from "@/utils/derived";
 
 function debounce<Args extends unknown[]>(
   func: (...args: Args) => void,
@@ -67,6 +71,17 @@ export function TransactionList() {
       )
     : transactions;
 
+  const accountTransactions =
+    allTransactions &&
+    allTransactions.some((t) => t.accountId === selectedAccountId)
+      ? allTransactions.filter((t) => t.accountId === selectedAccountId)
+      : transactions;
+
+  const runningBalances = computeRunningBalances(accountTransactions);
+  const runningBalanceMap = new Map<string, number>(
+    runningBalances.map((entry) => [entry.transactionId, entry.balanceAfter]),
+  );
+
   if (sourceTransactions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -109,11 +124,9 @@ export function TransactionList() {
     return true;
   });
 
-  const sortedByDateDescending = [...filtered].sort((a, b) => {
-    if (a.date < b.date) return 1;
-    if (a.date > b.date) return -1;
-    return 0;
-  });
+  const sortedByDateDescending = [...filtered].sort((a, b) =>
+    compareTransactionChronologically(b, a),
+  );
 
   const handleVoid = async (transactionId: string) => {
     await voidTransaction(transactionId, "Voided by user");
@@ -237,6 +250,12 @@ export function TransactionList() {
               </th>
               <th
                 scope="col"
+                className="text-right text-xs text-muted-foreground pb-3 font-medium pr-4"
+              >
+                Running Balance
+              </th>
+              <th
+                scope="col"
                 className="text-left text-xs text-muted-foreground pb-3 font-medium pl-4"
               >
                 Status
@@ -253,7 +272,7 @@ export function TransactionList() {
             {sortedByDateDescending.map((transaction) =>
               editingId === transaction.id ? (
                 <tr key={transaction.id}>
-                  <td colSpan={5} className="py-3">
+                  <td colSpan={6} className="py-3">
                     <EditTransactionForm
                       transaction={transaction}
                       onDone={() => setEditingId(null)}
@@ -275,6 +294,14 @@ export function TransactionList() {
                     {formatCentsToDollar(transaction.amountInCents, {
                       alwaysShowSign: true,
                     })}
+                  </td>
+                  <td className="py-3 text-right font-mono tabular-nums text-sm text-muted-foreground pr-4">
+                    {runningBalanceMap.has(transaction.id)
+                      ? formatCentsToDollar(
+                          runningBalanceMap.get(transaction.id)!,
+                          { alwaysShowSign: true },
+                        )
+                      : "—"}
                   </td>
                   <td className="py-3 text-sm pl-4">
                     {isPostedTransaction(transaction) ? (

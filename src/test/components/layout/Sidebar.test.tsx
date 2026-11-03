@@ -14,6 +14,7 @@ vi.mock("@/store/store", () => {
 const mockArchiveAccount = vi.fn();
 const mockRestoreAccount = vi.fn();
 const mockDeleteAccount = vi.fn();
+const mockUpdateAccount = vi.fn();
 
 describe("Sidebar", () => {
   const mockSelectAccount = vi.fn();
@@ -31,6 +32,7 @@ describe("Sidebar", () => {
         archiveAccount: mockArchiveAccount,
         restoreAccount: mockRestoreAccount,
         deleteAccount: mockDeleteAccount,
+        updateAccount: mockUpdateAccount,
         ...overrides,
       }),
     );
@@ -41,9 +43,11 @@ describe("Sidebar", () => {
     mockArchiveAccount.mockReset();
     mockRestoreAccount.mockReset();
     mockDeleteAccount.mockReset();
+    mockUpdateAccount.mockReset();
     mockArchiveAccount.mockResolvedValue(null);
     mockRestoreAccount.mockResolvedValue(null);
     mockDeleteAccount.mockResolvedValue(null);
+    mockUpdateAccount.mockResolvedValue(null);
     mockState();
   });
 
@@ -116,6 +120,24 @@ describe("Sidebar", () => {
     render(<Sidebar activeView="dashboard" onViewChange={vi.fn()} />);
 
     expect(screen.queryByText(/^Archived/)).toBeNull();
+  });
+
+  it("offers edit for an account", async () => {
+    const user = userEvent.setup();
+    mockState({
+      accounts: [
+        { id: "acc-1", name: "Checking", type: "checking", archived: false },
+      ],
+    });
+
+    render(<Sidebar activeView="dashboard" onViewChange={vi.fn()} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Account actions for Checking" }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
+
+    expect(screen.getByText("Edit Checking")).toBeInTheDocument();
   });
 
   it("offers archive for an active account", async () => {

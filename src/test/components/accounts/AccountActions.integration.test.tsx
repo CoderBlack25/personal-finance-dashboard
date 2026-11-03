@@ -28,6 +28,42 @@ describe("AccountActions (integration, real store + real IndexedDB)", () => {
     });
   });
 
+  it("edits an account through the menu and persists it", async () => {
+    const user = userEvent.setup();
+    const account = await createAccount("Primary Checking");
+
+    render(<AccountActions account={account} transactionCount={0} />);
+
+    await user.click(
+      screen.getByRole("button", { name: `Account actions for ${account.name}` }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "Edit" }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(`Edit ${account.name}`)).toBeInTheDocument();
+
+    const nameInput = within(dialog).getByLabelText(/account name/i);
+    await user.clear(nameInput);
+    await user.type(nameInput, "Renamed Checking");
+
+    const typeSelect = within(dialog).getByLabelText(/account type/i);
+    await user.selectOptions(typeSelect, "savings");
+
+    await user.click(within(dialog).getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      const state = useFinanceStore.getState();
+      const updated = state.accounts.find((a) => a.id === account.id);
+      expect(updated?.name).toBe("Renamed Checking");
+      expect(updated?.type).toBe("savings");
+    });
+
+    const stored = await getAccounts();
+    const storedAccount = stored.find((a) => a.id === account.id);
+    expect(storedAccount?.name).toBe("Renamed Checking");
+    expect(storedAccount?.type).toBe("savings");
+  });
+
   it("archives an account through the menu and persists it", async () => {
     const user = userEvent.setup();
     const account = await createAccount("Checking");

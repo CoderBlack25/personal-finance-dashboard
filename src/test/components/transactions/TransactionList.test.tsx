@@ -40,7 +40,7 @@ describe("TransactionList", () => {
   it("prompts to add an account when none is selected", () => {
     mockState({ selectedAccountId: null, transactions: [] });
     render(<TransactionList />);
-    expect(screen.getByText(/no account selected/i)).toBeInTheDocument();
+   expect(screen.getByText(/no account selected/i)).toBeInTheDocument();
   });
 
   it("shows an empty state when an account is selected but has no transactions", () => {
@@ -77,10 +77,11 @@ describe("TransactionList", () => {
     expect(rows).toHaveLength(3);
 
     const coffeeRow = screen.getByText("Coffee").closest("tr")!;
-    expect(within(coffeeRow).getByText("-$42.50")).toBeInTheDocument();
+    expect(within(coffeeRow).getAllByText("-$42.50")).toHaveLength(2);
 
     const paycheckRow = screen.getByText("Paycheck").closest("tr")!;
     expect(within(paycheckRow).getByText("+$1,200.00")).toBeInTheDocument();
+    expect(within(paycheckRow).getByText("+$1,157.50")).toBeInTheDocument();
   });
 
   it("sorts by date descending regardless of insertion order", () => {
@@ -122,6 +123,43 @@ describe("TransactionList", () => {
     expect(descriptionsInOrder).toEqual(["Newest", "Middle", "Oldest"]);
   });
 
+  it("shows same-day transactions newest-first with balances from entry order", () => {
+    mockState({
+      selectedAccountId: "acc_1",
+      transactions: [
+        {
+          id: "tx_late",
+          accountId: "acc_1",
+          categoryId: null,
+          amountInCents: -2500,
+          date: "2026-08-05",
+          createdAt: "2026-08-05T12:00:00.000Z",
+          description: "Later Expense",
+        },
+        {
+          id: "tx_early",
+          accountId: "acc_1",
+          categoryId: null,
+          amountInCents: 10000,
+          date: "2026-08-05",
+          createdAt: "2026-08-05T09:00:00.000Z",
+          description: "Earlier Deposit",
+        },
+      ],
+    });
+    render(<TransactionList />);
+
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows.map((row) => within(row).getAllByRole("cell")[1].textContent))
+      .toEqual(["Later Expense", "Earlier Deposit"]);
+    expect(within(rows[0]).getAllByRole("cell")[3]).toHaveTextContent(
+      "+$75.00",
+    );
+    expect(within(rows[1]).getAllByRole("cell")[3]).toHaveTextContent(
+      "+$100.00",
+    );
+  });
+
   it("shows the edit form when a transaction's edit button is clicked", async () => {
     mockState({
       selectedAccountId: "acc_1",
@@ -148,5 +186,56 @@ describe("TransactionList", () => {
     expect(
       screen.getByRole("button", { name: /save changes/i }),
     ).toBeInTheDocument();
+  });
+
+  it("renders running balance column showing accumulated balance after each transaction", () => {
+    mockState({
+      selectedAccountId: "acc_1",
+      transactions: [
+        {
+          id: "tx_1",
+          accountId: "acc_1",
+          categoryId: null,
+          amountInCents: 100000,
+          date: "2026-08-01",
+          description: "Initial Deposit",
+        },
+        {
+          id: "tx_2",
+          accountId: "acc_1",
+          categoryId: null,
+          amountInCents: -2500,
+          date: "2026-08-02",
+          description: "Book",
+        },
+        {
+          id: "tx_3",
+          accountId: "acc_1",
+          categoryId: null,
+          amountInCents: -5000,
+          date: "2026-08-03",
+          description: "Shoes",
+        },
+      ],
+    });
+    render(<TransactionList />);
+    expect(
+      screen.getByRole("columnheader", { name: /balance/i }),
+    ).toBeInTheDocument();
+
+    const depositRow = screen.getByText("Initial Deposit").closest("tr")!;
+    const bookRow = screen.getByText("Book").closest("tr")!;
+    const shoesRow = screen.getByText("Shoes").closest("tr")!;
+
+    // Initial deposit: +$1,000.00 -> balance +$1,000.00
+    expect(within(depositRow).getAllByText("+$1,000.00")).toHaveLength(2);
+
+    // Book: -$25.00 -> balance +$975.00
+    expect(within(bookRow).getByText("-$25.00")).toBeInTheDocument();
+    expect(within(bookRow).getByText("+$975.00")).toBeInTheDocument();
+
+    // Shoes: -$50.00 -> balance +$925.00
+    expect(within(shoesRow).getByText("-$50.00")).toBeInTheDocument();
+    expect(within(shoesRow).getByText("+$925.00")).toBeInTheDocument();
   });
 });
