@@ -11,8 +11,7 @@ import {
   importTransactions,
   putTransaction,
   updateAccount,
-  voidTransaction,
-  voidTransactionBatch,
+  deleteTransaction,
   CategoryValidationError,
 } from "@/services/db";
 
@@ -29,8 +28,7 @@ vi.mock("@/services/db", async (importOriginal) => {
     importTransactions: vi.fn(),
     putTransaction: vi.fn(),
     updateAccount: vi.fn(),
-    voidTransaction: vi.fn(),
-    voidTransactionBatch: vi.fn(),
+    deleteTransaction: vi.fn(),
   };
 });
 
@@ -64,7 +62,6 @@ describe("UI store", () => {
         dateTo: "",
         accountId: "",
         categoryId: null,
-        showVoided: false,
       },
       summaryFilters: {
         dateFrom: "",
@@ -122,7 +119,6 @@ describe("UI store", () => {
       dateTo: "",
       accountId: "",
       categoryId: null,
-      showVoided: false,
     });
   });
 
@@ -157,10 +153,7 @@ describe("UI store", () => {
   it("invalidates data after transaction and category mutations", async () => {
     vi.mocked(addTransaction).mockResolvedValue(transaction);
     vi.mocked(putTransaction).mockResolvedValue(undefined);
-    vi.mocked(voidTransaction).mockResolvedValue({
-      ...transaction,
-      status: "void",
-    });
+    vi.mocked(deleteTransaction).mockResolvedValue(undefined);
     vi.mocked(addCategory).mockResolvedValue({
       id: "category-1",
       name: "Food",
@@ -170,7 +163,7 @@ describe("UI store", () => {
     const store = useFinanceStore.getState();
     await store.createTransaction(transaction);
     await store.updateTransaction(transaction);
-    await store.voidTransaction(transaction.id);
+    await store.deleteTransaction(transaction.id);
     await store.createCategory({ name: "Food", color: "#22c55e" });
 
     expect(useFinanceStore.getState().dataRevision).toBe(4);
@@ -218,11 +211,11 @@ describe("UI store", () => {
     expect(useFinanceStore.getState().dataRevision).toBe(1);
   });
 
-  it("invalidates queried data after imports and batch rollback", async () => {
+  it("invalidates queried data after imports and transaction deletion", async () => {
     vi.mocked(importTransactions).mockResolvedValue([transaction]);
-    vi.mocked(voidTransactionBatch).mockResolvedValue(1);
+    vi.mocked(deleteTransaction).mockResolvedValue(undefined);
 
-    const batchId = await useFinanceStore.getState().importTransactions({
+    const imported = await useFinanceStore.getState().importTransactions({
       accountId: account.id,
       transactions: [
         {
@@ -233,10 +226,8 @@ describe("UI store", () => {
         },
       ],
     });
-    expect(batchId).toEqual(expect.any(String));
-    expect(await useFinanceStore.getState().voidTransactionBatch(batchId!)).toBe(
-      1,
-    );
+    expect(imported).toBe(true);
+    expect(await useFinanceStore.getState().deleteTransaction(transaction.id)).toBeNull();
     expect(useFinanceStore.getState().dataRevision).toBe(2);
   });
 

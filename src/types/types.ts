@@ -13,8 +13,6 @@ export type Category = {
   color: string;
 };
 
-export type TransactionStatus = "posted" | "void";
-
 export type Transaction = {
   id: string;
   accountId: string;
@@ -23,9 +21,4 @@ export type Transaction = {
   date: string;
   description: string;
   createdAt?: string;
-  status?: TransactionStatus;
-  voidedAt?: string;
-  voidReason?: string;
-  reversesId?: string | null;
-  batchId?: string | null;
 };

@@ -13,8 +13,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Search, List, Pencil, RotateCcw, XCircle } from "lucide-react";
-import { isPostedTransaction } from "@/services/db";
+import { Search, List, Pencil, Trash2 } from "lucide-react";
+import type { Transaction } from "@/types/types";
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogContent,
+  DialogDescription,
+  DialogPortal,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   compareTransactionChronologically,
   computeRunningBalances,
@@ -29,7 +37,7 @@ export function TransactionList() {
     useAllTransactions();
   const { data: categories, error: categoriesError } = useCategories();
   const { accounts } = accountData;
-  const voidTransaction = useFinanceStore((state) => state.voidTransaction);
+  const deleteTransaction = useFinanceStore((state) => state.deleteTransaction);
   const transactionFilters = useFinanceStore(
     (state) => state.transactionFilters,
   );
@@ -40,6 +48,9 @@ export function TransactionList() {
     (state) => state.resetTransactionFilters,
   );
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const {
@@ -48,7 +59,6 @@ export function TransactionList() {
     dateTo,
     accountId: accountFilterId,
     categoryId,
-    showVoided,
   } = transactionFilters;
 
   useEffect(() => {
@@ -66,9 +76,6 @@ export function TransactionList() {
       accountFilterId === ALL_ACCOUNTS ||
       transaction.accountId === accountFilterId,
   );
-  const sourceTransactions = showVoided
-    ? accountScopedTransactions
-    : accountScopedTransactions.filter(isPostedTransaction);
   const transactionsByAccount = new Map<string, typeof allTransactions>();
   for (const transaction of allTransactions) {
     const accountTransactions =
@@ -83,7 +90,7 @@ export function TransactionList() {
     }
   }
 
-  const filtered = sourceTransactions.filter((transaction) => {
+  const filtered = accountScopedTransactions.filter((transaction) => {
     if (
       debouncedSearch &&
       !transaction.description
@@ -108,8 +115,17 @@ export function TransactionList() {
     compareTransactionChronologically(b, a),
   );
 
-  const handleVoid = async (transactionId: string) => {
-    await voidTransaction(transactionId, "Voided by user");
+  const handleDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const error = await deleteTransaction(pendingDelete.id);
+    setDeleting(false);
+    if (error) {
+      setDeleteError(error);
+      return;
+    }
+    setPendingDelete(null);
   };
 
   return (
@@ -117,17 +133,6 @@ export function TransactionList() {
       <div className="flex flex-col lg:flex-row lg:items-end lg:gap-6 gap-4 mb-6">
         <div className="flex-1 min-w-0">
           <h2 className="text-lg font-semibold">Transactions</h2>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant={showVoided ? "default" : "outline"}
-            size="sm"
-            onClick={() =>             updateTransactionFilters({ showVoided: !showVoided })}
-          >
-            {showVoided ? "Hide voided" : "Show voided"}
-          </Button>
         </div>
 
         <form
@@ -249,14 +254,10 @@ export function TransactionList() {
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <List className="w-8 h-8 text-muted-foreground mb-2" />
           <p className="text-sm text-muted-foreground">
-            {showVoided
-              ? "No transactions found for this filter"
-              : "No transactions logged yet for this filter"}
+            No transactions found for this filter
           </p>
           <p className="text-xs text-muted-foreground">
-            {showVoided
-              ? "Try changing the account filter or disabling 'Show voided'."
-              : "Try changing the filters or add a transaction."}
+            Try changing the filters or add a transaction.
           </p>
         </div>
       ) : (
@@ -290,12 +291,6 @@ export function TransactionList() {
               </th>
               <th
                 scope="col"
-                className="text-left text-xs text-muted-foreground pb-3 font-medium pl-4"
-              >
-                Status
-              </th>
-              <th
-                scope="col"
                 className="text-right text-xs text-muted-foreground pb-3 font-medium w-24"
               >
                 <span className="sr-only">Actions</span>
@@ -306,7 +301,7 @@ export function TransactionList() {
             {sortedByDateDescending.map((transaction) =>
               editingId === transaction.id ? (
                 <tr key={transaction.id}>
-                  <td colSpan={6} className="py-3">
+                  <td colSpan={5} className="py-3">
                     <EditTransactionForm
                       transaction={transaction}
                       onDone={() => setEditingId(null)}
@@ -351,17 +346,6 @@ export function TransactionList() {
                         )
                       : "—"}
                   </td>
-                  <td className="py-3 text-sm pl-4">
-                    {isPostedTransaction(transaction) ? (
-                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-                        Posted
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
-                        Voided
-                      </span>
-                    )}
-                  </td>
                   <td className="py-2 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button
@@ -370,27 +354,20 @@ export function TransactionList() {
                         aria-label={`Edit ${transaction.description}`}
                         title="Edit transaction"
                         className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!isPostedTransaction(transaction)}
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleVoid(transaction.id)}
-                        aria-label={`Void ${transaction.description}`}
-                        title={
-                          isPostedTransaction(transaction)
-                            ? "Void transaction"
-                            : "Already voided"
-                        }
+                        onClick={() => {
+                          setDeleteError(null);
+                          setPendingDelete(transaction);
+                        }}
+                        aria-label={`Delete ${transaction.description}`}
+                        title="Delete transaction"
                         className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={!isPostedTransaction(transaction)}
                       >
-                        {isPostedTransaction(transaction) ? (
-                          <XCircle className="h-4 w-4" />
-                        ) : (
-                          <RotateCcw className="h-4 w-4" />
-                        )}
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
@@ -401,6 +378,50 @@ export function TransactionList() {
           </table>
         </div>
       )}
+      <Dialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) {
+            setPendingDelete(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <DialogPortal>
+          <DialogBackdrop />
+          <DialogContent>
+            <DialogTitle>Delete transaction?</DialogTitle>
+            <DialogDescription>
+              This permanently deletes
+              {pendingDelete ? ` “${pendingDelete.description}”` : " this transaction"}.
+              This cannot be undone.
+            </DialogDescription>
+            {deleteError && (
+              <p role="alert" className="mt-2 text-sm text-destructive">
+                {deleteError}
+              </p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={deleting}
+                onClick={() => setPendingDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={deleting}
+                onClick={() => void handleDelete()}
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </DialogContent>
+        </DialogPortal>
+      </Dialog>
     </section>
   );
 }

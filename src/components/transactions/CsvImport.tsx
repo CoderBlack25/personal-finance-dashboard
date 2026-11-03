@@ -5,15 +5,12 @@ import { validateCsvRows, parseCsvAmount } from "@/schemas/csvSchema";
 import { formatCentsToDollar } from "@/utils/money";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { Upload, FileText, RotateCcw } from "lucide-react";
+import { Upload, FileText } from "lucide-react";
 
 export function CsvImport() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
   const importTransactions = useFinanceStore(
     (state) => state.importTransactions,
-  );
-  const voidTransactionBatch = useFinanceStore(
-    (state) => state.voidTransactionBatch,
   );
   const error = useFinanceStore((state) => state.error);
 
@@ -26,8 +23,6 @@ export function CsvImport() {
   > | null>(null);
   const [importing, setImporting] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
-  const [lastBatchId, setLastBatchId] = useState<string | null>(null);
-  const [rollingBack, setRollingBack] = useState(false);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0] ?? null;
@@ -37,7 +32,6 @@ export function CsvImport() {
     setParseResult(null);
     setValidationResult(null);
     setImportedCount(0);
-    setLastBatchId(null);
 
     const reader = new FileReader();
     reader.onload = () => {
@@ -68,36 +62,20 @@ export function CsvImport() {
         categoryId: null,
       }));
 
-      const batchId = await importTransactions({
+      const imported = await importTransactions({
         accountId: selectedAccountId,
         transactions: inputTransactions,
       });
-      if (!batchId) return;
+      if (!imported) return;
 
       setImportedCount(validRows.length);
       setFile(null);
       setParseResult(null);
       setValidationResult(null);
-      setLastBatchId(batchId);
-      (window as any).__lastImportBatchId = batchId;
     } catch {
       // Error already set by store
     } finally {
       setImporting(false);
-    }
-  };
-
-  const handleRollback = async () => {
-    if (!lastBatchId) return;
-    setRollingBack(true);
-    try {
-      await voidTransactionBatch(lastBatchId);
-      setLastBatchId(null);
-      if ((window as any).__lastImportBatchId === lastBatchId) {
-        (window as any).__lastImportBatchId = null;
-      }
-    } finally {
-      setRollingBack(false);
     }
   };
 
@@ -138,21 +116,11 @@ export function CsvImport() {
               {error}
             </Alert>
           )}
-          {importedCount > 0 && lastBatchId && (
+          {importedCount > 0 && (
             <div className="mt-4 flex items-center justify-between rounded-md border border-border p-3">
               <span className="text-sm text-foreground">
                 Successfully imported {importedCount} transaction(s).
               </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={handleRollback}
-                disabled={rollingBack}
-              >
-                <RotateCcw className="w-3 h-3 mr-2" />
-                {rollingBack ? "Rolling back..." : "Void this import"}
-              </Button>
             </div>
           )}
         </div>
@@ -297,21 +265,11 @@ export function CsvImport() {
         </table>
       </div>
 
-      {importedCount > 0 && lastBatchId && (
+      {importedCount > 0 && (
         <div className="flex items-center justify-between rounded-md border border-border p-3">
           <span className="text-sm text-foreground">
             Successfully imported {importedCount} transaction(s).
           </span>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={handleRollback}
-            disabled={rollingBack}
-          >
-            <RotateCcw className="w-3 h-3 mr-2" />
-            {rollingBack ? "Rolling back..." : "Void this import"}
-          </Button>
         </div>
       )}
 

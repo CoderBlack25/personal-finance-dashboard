@@ -3,7 +3,7 @@ import type { Account, Category, Transaction } from "@/types/types";
 import { HEX_COLOR_REGEX } from "@/schemas/categorySchema";
 
 const DB_NAME = "finance-dashboard";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: "cat-income", name: "Income", color: "#14b8a6" },
@@ -23,7 +23,7 @@ interface FinanceDB extends DBSchema {
   transactions: {
     key: string;
     value: Transaction;
-    indexes: { "by-account": string; "by-batch": string };
+    indexes: { "by-account": string };
   };
   categories: {
     key: string;
@@ -56,27 +56,29 @@ function getDB(): Promise<IDBPDatabase<FinanceDB>> {
           }
         }
 
-        if (oldVersion < 3) {
+        if (oldVersion < 4) {
           const txStore = transaction.objectStore("transactions");
-          if (!txStore.indexNames.contains("by-batch")) {
-            txStore.createIndex("by-batch", "batchId");
-          }
+          void txStore.openCursor().then(async (initialCursor) => {
+            let cursor = initialCursor;
+            while (cursor) {
+            for (const field of [
+              "status",
+              "voidedAt",
+              "voidReason",
+              "reversesId",
+              "batchId",
+            ]) {
+              Reflect.deleteProperty(cursor.value, field);
+            }
+              await cursor.update(cursor.value);
+              cursor = await cursor.continue();
+            }
+          });
         }
       },
     });
   }
   return dbPromise;
-}
-
-export function normalizeTransaction(transaction: Transaction): Transaction {
-  if (transaction.status === "void") {
-    return transaction;
-  }
-  return { ...transaction, status: "posted" };
-}
-
-export function isPostedTransaction(transaction: Transaction): boolean {
-  return normalizeTransaction(transaction).status === "posted";
 }
 
 // ── Accounts ────────────────────────────────────────────────────────────────
@@ -125,7 +127,7 @@ export async function countTransactionsForAccount(
     "by-account",
     accountId,
   );
-  return transactions.filter(isPostedTransaction).length;
+  return transactions.length;
 }
 
 // ── Transactions ─────────────────────────────────────────────────────────────
@@ -144,9 +146,6 @@ export async function addTransaction(
   const transaction: Transaction = {
     ...input,
     createdAt: new Date(Math.max(Date.now(), latestCreatedAt + 1)).toISOString(),
-    status: "posted",
-    batchId: input.batchId ?? null,
-    reversesId: input.reversesId ?? null,
     id: crypto.randomUUID(),
   };
   await tx.store.add(transaction);
@@ -163,66 +162,23 @@ export async function getTransactionsForAccount(
     "by-account",
     accountId,
   );
-  return transactions.map(normalizeTransaction);
+  return transactions;
 }
 
 export async function getAllTransactions(): Promise<Transaction[]> {
   const db = await getDB();
   const transactions = await db.getAll("transactions");
-  return transactions.map(normalizeTransaction);
+  return transactions;
 }
 
 export async function putTransaction(transaction: Transaction): Promise<void> {
   const db = await getDB();
-  await db.put("transactions", normalizeTransaction(transaction));
+  await db.put("transactions", transaction);
 }
 
-export async function voidTransaction(
-  transactionId: string,
-  reason?: string,
-): Promise<Transaction | null> {
+export async function deleteTransaction(transactionId: string): Promise<void> {
   const db = await getDB();
-  const transaction = await db.get("transactions", transactionId);
-  if (!transaction) {
-    return null;
-  }
-
-  const normalized = normalizeTransaction(transaction);
-  if (normalized.status === "void") {
-    return normalized;
-  }
-
-  const voided: Transaction = {
-    ...normalized,
-    status: "void",
-    voidedAt: new Date().toISOString(),
-    voidReason: reason,
-  };
-
-  await db.put("transactions", voided);
-  return voided;
-}
-
-export async function voidTransactionBatch(batchId: string): Promise<number> {
-  if (!batchId) {
-    return 0;
-  }
-  const db = await getDB();
-  const transactions = await db.getAllFromIndex("transactions", "by-batch", batchId);
-  let count = 0;
-  for (const transaction of transactions) {
-    const normalized = normalizeTransaction(transaction);
-    if (normalized.status === "posted") {
-      await db.put("transactions", {
-        ...normalized,
-        status: "void",
-        voidedAt: new Date().toISOString(),
-        voidReason: "Voided as part of batch rollback",
-      });
-      count += 1;
-    }
-  }
-  return count;
+  await db.delete("transactions", transactionId);
 }
 
 export async function importTransactions(
@@ -238,24 +194,16 @@ export async function importTransactions(
     0,
   );
 
-  const batchId =
-    transactions.length > 0 && transactions.some((t) => t.batchId)
-      ? transactions[0].batchId ?? crypto.randomUUID()
-      : crypto.randomUUID();
-
   const results: Transaction[] = [];
   for (const input of transactions) {
     latestCreatedAt = Math.max(Date.now(), latestCreatedAt + 1);
     const transaction: Transaction = {
       ...input,
       createdAt: new Date(latestCreatedAt).toISOString(),
-      status: "posted",
-      batchId: input.batchId ?? batchId,
-      reversesId: input.reversesId ?? null,
       id: crypto.randomUUID(),
     };
     await store.add(transaction);
-    results.push(normalizeTransaction(transaction));
+    results.push(transaction);
   }
 
   await tx.done;

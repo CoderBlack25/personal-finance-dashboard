@@ -67,8 +67,8 @@ function mockState(state: {
       dateTo: "",
       accountId: state.selectedAccountId ?? "",
       categoryId: null,
-      showVoided: false,
     },
+    deleteTransaction: vi.fn().mockResolvedValue(null),
   });
 }
 
@@ -83,7 +83,36 @@ describe("TransactionList", () => {
   it("shows an empty state when an account is selected but has no transactions", () => {
     mockState({ selectedAccountId: "acc_1", transactions: [] });
     render(<TransactionList />);
-    expect(screen.getByText(/no transactions logged yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/no transactions found/i)).toBeInTheDocument();
+  });
+
+  it("deletes a transaction after confirmation", async () => {
+    mockState({
+      selectedAccountId: "acc_1",
+      transactions: [
+        {
+          id: "tx_1",
+          accountId: "acc_1",
+          categoryId: null,
+          amountInCents: -500,
+          date: "2026-08-01",
+          description: "Coffee",
+        },
+      ],
+    });
+    render(<TransactionList />);
+
+    const user = userEvent.setup();
+    const transactionRow = screen.getByText("Coffee").closest("tr")!;
+    await user.click(
+      within(transactionRow).getByRole("button", { name: /delete coffee/i }),
+    );
+    expect(screen.getByText(/permanently deletes/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(useFinanceStore.getState().deleteTransaction).toHaveBeenCalledWith(
+      "tx_1",
+    );
   });
 
   it("filters transactions by account and can show transactions from all accounts", async () => {

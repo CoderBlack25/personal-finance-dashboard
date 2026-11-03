@@ -12,8 +12,7 @@ import {
   deleteAccount as deleteAccountRecord,
   countTransactionsForAccount,
   CategoryValidationError,
-  voidTransaction,
-  voidTransactionBatch,
+  deleteTransaction as deleteTransactionRecord,
 } from "../services/db";
 
 export type View =
@@ -31,7 +30,6 @@ interface FinanceStore {
     dateTo: string;
     accountId: string;
     categoryId: string | null;
-    showVoided: boolean;
   };
   summaryFilters: {
     dateFrom: string;
@@ -52,8 +50,7 @@ interface FinanceStore {
   selectAccount: (accountId: string) => void;
   createTransaction: (input: Omit<Transaction, "id">) => Promise<void>;
   updateTransaction: (transaction: Transaction) => Promise<void>;
-  voidTransaction: (transactionId: string, reason?: string) => Promise<string | null>;
-  voidTransactionBatch: (batchId: string) => Promise<number>;
+  deleteTransaction: (transactionId: string) => Promise<string | null>;
   importTransactions: (input: {
     accountId: string;
     transactions: Array<{
@@ -62,7 +59,7 @@ interface FinanceStore {
       description: string;
       categoryId: string | null;
     }>;
-  }) => Promise<string | null>;
+  }) => Promise<boolean>;
   createCategory: (input: Omit<Category, "id">) => Promise<string | null>;
   setActiveView: (view: View) => void;
   updateTransactionFilters: (
@@ -83,7 +80,6 @@ export const useFinanceStore = create<FinanceStore>()(
         dateTo: "",
         accountId: "",
         categoryId: null,
-        showVoided: false,
       },
       summaryFilters: {
         dateFrom: "",
@@ -244,10 +240,7 @@ export const useFinanceStore = create<FinanceStore>()(
       createTransaction: async (input) => {
         set({ isLoading: true, error: null });
         try {
-          await addTransaction({
-            ...input,
-            batchId: (input as { batchId?: string | null }).batchId ?? null,
-          });
+          await addTransaction(input);
           set((state) => ({
             dataRevision: state.dataRevision + 1,
             isLoading: false,
@@ -270,45 +263,25 @@ export const useFinanceStore = create<FinanceStore>()(
         }
       },
 
-      voidTransaction: async (transactionId, reason) => {
+      deleteTransaction: async (transactionId) => {
         set({ isLoading: true, error: null });
         try {
-          const voided = await voidTransaction(transactionId, reason);
-          if (!voided) {
-            set({ isLoading: false });
-            return null;
-          }
+          await deleteTransactionRecord(transactionId);
           set((state) => ({
             dataRevision: state.dataRevision + 1,
             isLoading: false,
           }));
           return null;
         } catch {
-          const message = "Could not void transaction.";
+          const message = "Could not delete transaction.";
           set({ error: message, isLoading: false });
           return message;
-        }
-      },
-
-      voidTransactionBatch: async (batchId) => {
-        set({ isLoading: true, error: null });
-        try {
-          const count = await voidTransactionBatch(batchId);
-          set((state) => ({
-            dataRevision: state.dataRevision + 1,
-            isLoading: false,
-          }));
-          return count;
-        } catch {
-          set({ error: "Could not void import batch.", isLoading: false });
-          return 0;
         }
       },
 
       importTransactions: async ({ accountId, transactions }) => {
         set({ isLoading: true, error: null });
         try {
-          const batchId = crypto.randomUUID();
           await importTransactionsDb(
             transactions.map((t) => ({
               accountId,
@@ -316,17 +289,16 @@ export const useFinanceStore = create<FinanceStore>()(
               date: t.date,
               description: t.description,
               categoryId: t.categoryId,
-              batchId,
             })),
           );
           set((state) => ({
             dataRevision: state.dataRevision + 1,
             isLoading: false,
           }));
-          return batchId;
+          return true;
         } catch {
           set({ error: "Could not import transactions.", isLoading: false });
-          return null;
+          return false;
         }
       },
 
@@ -362,7 +334,6 @@ export const useFinanceStore = create<FinanceStore>()(
             dateTo: "",
             accountId: accountId ?? "",
             categoryId: null,
-            showVoided: false,
           },
         }),
       updateSummaryFilters: (filters) =>

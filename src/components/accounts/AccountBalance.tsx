@@ -5,7 +5,6 @@ import {
   formatAccessibleMoney,
   formatCentsToDollar,
 } from "@/utils/money";
-import { isPostedTransaction } from "@/services/db";
 
 export function AccountBalance() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
@@ -24,9 +23,7 @@ export function AccountBalance() {
   }
 
   const accountTransactions = allTransactions.filter(
-    (transaction) =>
-      transaction.accountId === selectedAccountId &&
-      isPostedTransaction(transaction),
+    (transaction) => transaction.accountId === selectedAccountId,
   );
   const balance = computeBalance(accountTransactions);
   const isPositive = balance >= 0;
