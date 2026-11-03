@@ -12,9 +12,6 @@ export function CsvImport() {
   const importTransactions = useFinanceStore(
     (state) => state.importTransactions,
   );
-  const loadAllTransactions = useFinanceStore(
-    (state) => state.loadAllTransactions,
-  );
   const voidTransactionBatch = useFinanceStore(
     (state) => state.voidTransactionBatch,
   );
@@ -75,16 +72,14 @@ export function CsvImport() {
         accountId: selectedAccountId,
         transactions: inputTransactions,
       });
+      if (!batchId) return;
 
-      await loadAllTransactions();
       setImportedCount(validRows.length);
       setFile(null);
       setParseResult(null);
       setValidationResult(null);
-      setLastBatchId(batchId ?? null);
-      if (batchId) {
-        (window as any).__lastImportBatchId = batchId;
-      }
+      setLastBatchId(batchId);
+      (window as any).__lastImportBatchId = batchId;
     } catch {
       // Error already set by store
     } finally {

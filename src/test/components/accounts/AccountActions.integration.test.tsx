@@ -9,7 +9,7 @@ import type { Account } from "@/types/types";
 
 async function createAccount(name: string): Promise<Account> {
   await useFinanceStore.getState().createAccount({ name, type: "checking" });
-  const created = useFinanceStore.getState().accounts.at(-1);
+  const created = (await getAccounts()).find((account) => account.name === name);
   if (!created) throw new Error("account was not created");
   return created;
 }
@@ -18,10 +18,6 @@ describe("AccountActions (integration, real store + real IndexedDB)", () => {
   beforeEach(() => {
     localStorage.clear();
     useFinanceStore.setState({
-      accounts: [],
-      archivedAccounts: [],
-      transactions: [],
-      allTransactions: [],
       selectedAccountId: null,
       isLoading: false,
       error: null,
@@ -52,10 +48,11 @@ describe("AccountActions (integration, real store + real IndexedDB)", () => {
     await user.click(within(dialog).getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
-      const state = useFinanceStore.getState();
-      const updated = state.accounts.find((a) => a.id === account.id);
-      expect(updated?.name).toBe("Renamed Checking");
-      expect(updated?.type).toBe("savings");
+      return getAccounts().then((accounts) => {
+        const updated = accounts.find((a) => a.id === account.id);
+        expect(updated?.name).toBe("Renamed Checking");
+        expect(updated?.type).toBe("savings");
+      });
     });
 
     const stored = await getAccounts();
@@ -81,9 +78,9 @@ describe("AccountActions (integration, real store + real IndexedDB)", () => {
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 
     await waitFor(() => {
-      const state = useFinanceStore.getState();
-      expect(state.accounts.find((a) => a.id === account.id)).toBeUndefined();
-      expect(state.archivedAccounts.find((a) => a.id === account.id)).toBeDefined();
+      return getAccounts().then((accounts) => {
+        expect(accounts.find((a) => a.id === account.id)?.archived).toBe(true);
+      });
     });
 
     const stored = await getAccounts();
@@ -105,8 +102,9 @@ describe("AccountActions (integration, real store + real IndexedDB)", () => {
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
-      const state = useFinanceStore.getState();
-      expect(state.accounts.find((a) => a.id === account.id)).toBeUndefined();
+      return getAccounts().then((accounts) => {
+        expect(accounts.find((a) => a.id === account.id)).toBeUndefined();
+      });
     });
 
     const stored = await getAccounts();

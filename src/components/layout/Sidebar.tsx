@@ -1,4 +1,5 @@
 import { useFinanceStore } from "@/store/store";
+import { useAccounts, useAllTransactions } from "@/hooks/useFinanceData";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AccountActions } from "@/components/accounts/AccountActions";
@@ -28,11 +29,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
-  const accounts = useFinanceStore((state) => state.accounts);
-  const archivedAccounts = useFinanceStore((state) => state.archivedAccounts);
+  const { data: accountData, error: accountError } = useAccounts();
+  const { data: allTransactions, error: transactionError } =
+    useAllTransactions();
+  const { accounts, archivedAccounts } = accountData;
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
   const selectAccount = useFinanceStore((state) => state.selectAccount);
-  const allTransactions = useFinanceStore((state) => state.allTransactions);
   const transactionCounts = countTransactionsByAccount(allTransactions);
 
   return (
@@ -77,6 +79,11 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
         </nav>
 
         <div className="p-4 border-t border-border space-y-4 shrink-0">
+          {(accountError || transactionError) && (
+            <p role="alert" className="text-xs text-destructive">
+              {accountError ?? transactionError}
+            </p>
+          )}
           <div className="space-y-1">
             <h2 className="px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
               Accounts

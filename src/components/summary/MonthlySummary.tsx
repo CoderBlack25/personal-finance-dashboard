@@ -12,6 +12,11 @@ import {
 } from "chart.js";
 import { useFinanceStore } from "@/store/store";
 import {
+  useAccounts,
+  useAllTransactions,
+  useCategories,
+} from "@/hooks/useFinanceData";
+import {
   computeCategoryRollups,
   computeMonthlySummary,
   filterTransactionsForAccounts,
@@ -33,15 +38,18 @@ Chart.register(
 );
 
 export function MonthlySummary() {
-  const allTransactions = useFinanceStore((state) => state.allTransactions);
-  const accounts = useFinanceStore((state) => state.accounts);
-  const categories = useFinanceStore((state) => state.categories);
+  const { data: allTransactions, error: transactionsError } =
+    useAllTransactions();
+  const { data: accountData, error: accountsError } = useAccounts();
+  const { data: categories, error: categoriesError } = useCategories();
+  const { accounts } = accountData;
+  const summaryFilters = useFinanceStore((state) => state.summaryFilters);
+  const updateSummaryFilters = useFinanceStore(
+    (state) => state.updateSummaryFilters,
+  );
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+  const { year, month, dateFrom, dateTo } = summaryFilters;
   const [showTable, setShowTable] = useState(false);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartRef = useRef<Chart | null>(null);
@@ -212,7 +220,9 @@ export function MonthlySummary() {
           <Select
             id="summary-month"
             value={month}
-            onChange={(event) => setMonth(Number(event.target.value))}
+            onChange={(event) =>
+              updateSummaryFilters({ month: Number(event.target.value) })
+            }
           >
             {[...Array(12)]
               .map((_, index) => index + 1)
@@ -234,7 +244,9 @@ export function MonthlySummary() {
             id="summary-year"
             type="number"
             value={year}
-            onChange={(event) => setYear(Number(event.target.value))}
+            onChange={(event) =>
+              updateSummaryFilters({ year: Number(event.target.value) })
+            }
             className="w-32"
           />
         </div>
@@ -252,7 +264,9 @@ export function MonthlySummary() {
             id="summary-date-from"
             type="date"
             value={dateFrom}
-            onChange={(event) => setDateFrom(event.target.value)}
+            onChange={(event) =>
+              updateSummaryFilters({ dateFrom: event.target.value })
+            }
             className="w-full"
           />
         </div>
@@ -267,11 +281,19 @@ export function MonthlySummary() {
             id="summary-date-to"
             type="date"
             value={dateTo}
-            onChange={(event) => setDateTo(event.target.value)}
+            onChange={(event) =>
+              updateSummaryFilters({ dateTo: event.target.value })
+            }
             className="w-full"
           />
         </div>
       </div>
+
+      {(transactionsError || accountsError || categoriesError) && (
+        <p role="alert" className="text-sm text-destructive">
+          {transactionsError ?? accountsError ?? categoriesError}
+        </p>
+      )}
 
       <div className="h-64 rounded-lg border border-border bg-card p-4">
         <canvas

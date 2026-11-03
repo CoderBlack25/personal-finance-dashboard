@@ -4,12 +4,18 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useFinanceStore } from "@/store/store";
+import { useAccounts, useAllTransactions } from "@/hooks/useFinanceData";
 
 vi.mock("@/store/store", () => {
   const useFinanceStore = vi.fn() as any;
   useFinanceStore.getState = vi.fn();
   return { useFinanceStore };
 });
+
+vi.mock("@/hooks/useFinanceData", () => ({
+  useAccounts: vi.fn(),
+  useAllTransactions: vi.fn(),
+}));
 
 const mockArchiveAccount = vi.fn();
 const mockRestoreAccount = vi.fn();
@@ -20,13 +26,27 @@ describe("Sidebar", () => {
   const mockSelectAccount = vi.fn();
 
   function mockState(
-    overrides: Partial<{ accounts: any[]; archivedAccounts: any[] }> = {},
+    overrides: Partial<{
+      accounts: any[];
+      archivedAccounts: any[];
+      allTransactions: any[];
+    }> = {},
   ) {
+    vi.mocked(useAccounts).mockReturnValue({
+      data: {
+        accounts: overrides.accounts ?? [],
+        archivedAccounts: overrides.archivedAccounts ?? [],
+      },
+      isLoading: false,
+      error: null,
+    });
+    vi.mocked(useAllTransactions).mockReturnValue({
+      data: overrides.allTransactions ?? [],
+      isLoading: false,
+      error: null,
+    });
     vi.mocked(useFinanceStore).mockImplementation((selector: any) =>
       selector({
-        accounts: [],
-        archivedAccounts: [],
-        allTransactions: [],
         selectedAccountId: null,
         selectAccount: mockSelectAccount,
         archiveAccount: mockArchiveAccount,
@@ -182,30 +202,17 @@ describe("Sidebar", () => {
       accounts: [
         { id: "acc-1", name: "Checking", type: "checking", archived: false },
       ],
+      allTransactions: [
+        {
+          id: "tx-1",
+          accountId: "acc-1",
+          categoryId: null,
+          description: "Groceries",
+          amountInCents: -5000,
+          date: "2026-08-28",
+        },
+      ],
     });
-    vi.mocked(useFinanceStore).mockImplementation((selector: any) =>
-      selector({
-        accounts: [
-          { id: "acc-1", name: "Checking", type: "checking", archived: false },
-        ],
-        archivedAccounts: [],
-        allTransactions: [
-          {
-            id: "tx-1",
-            accountId: "acc-1",
-            categoryId: null,
-            description: "Groceries",
-            amountInCents: -5000,
-            date: "2026-08-28",
-          },
-        ],
-        selectedAccountId: null,
-        selectAccount: mockSelectAccount,
-        archiveAccount: mockArchiveAccount,
-        restoreAccount: mockRestoreAccount,
-        deleteAccount: mockDeleteAccount,
-      }),
-    );
 
     render(<Sidebar activeView="dashboard" onViewChange={vi.fn()} />);
 

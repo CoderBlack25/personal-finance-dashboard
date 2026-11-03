@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFinanceStore } from "@/store/store";
+import { useCategories } from "@/hooks/useFinanceData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -24,7 +25,7 @@ const PRESET_COLORS = [
 ] as const;
 
 export function CategoryManager() {
-  const categories = useFinanceStore((state) => state.categories);
+  const { data: categories, error: categoriesError } = useCategories();
   const createCategory = useFinanceStore((state) => state.createCategory);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -70,6 +71,11 @@ export function CategoryManager() {
     <div className="space-y-4">
       <Card className="p-5">
         <h2 className="text-lg font-semibold mb-4">Your categories</h2>
+        {categoriesError && (
+          <p role="alert" className="mb-3 text-sm text-destructive">
+            {categoriesError}
+          </p>
+        )}
         {categories.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No categories yet. Add your first one below.

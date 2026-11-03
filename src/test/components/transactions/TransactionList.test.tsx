@@ -6,6 +6,11 @@ import { describe, it, expect, vi } from "vitest";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { formatCentsToDollar } from "@/utils/money";
 import { useFinanceStore } from "@/store/store";
+import {
+  useAccounts,
+  useAllTransactions,
+  useCategories,
+} from "@/hooks/useFinanceData";
 
 describe("formatCents", () => {
   it.each([
@@ -21,10 +26,11 @@ describe("formatCents", () => {
   });
 });
 
-vi.mock("@/store/store", () => {
-  const useFinanceStore = vi.fn() as any;
-  return { useFinanceStore };
-});
+vi.mock("@/hooks/useFinanceData", () => ({
+  useAccounts: vi.fn(),
+  useAllTransactions: vi.fn(),
+  useCategories: vi.fn(),
+}));
 
 function mockState(state: {
   selectedAccountId: string | null;
@@ -33,16 +39,37 @@ function mockState(state: {
   accounts?: any[];
   categories?: any[];
 }) {
-  vi.mocked(useFinanceStore).mockImplementation((selector: any) =>
-    selector({
-      accounts: state.selectedAccountId
-        ? [{ id: state.selectedAccountId, name: "Checking" }]
-        : [],
-      allTransactions: state.allTransactions ?? state.transactions,
-      categories: [],
-      ...state,
-    }),
-  );
+  const accounts =
+    state.accounts ??
+    (state.selectedAccountId
+      ? [{ id: state.selectedAccountId, name: "Checking" }]
+      : []);
+  vi.mocked(useAccounts).mockReturnValue({
+    data: { accounts, archivedAccounts: [] },
+    isLoading: false,
+    error: null,
+  });
+  vi.mocked(useAllTransactions).mockReturnValue({
+    data: state.allTransactions ?? state.transactions,
+    isLoading: false,
+    error: null,
+  });
+  vi.mocked(useCategories).mockReturnValue({
+    data: state.categories ?? [],
+    isLoading: false,
+    error: null,
+  });
+  useFinanceStore.setState({
+    selectedAccountId: state.selectedAccountId,
+    transactionFilters: {
+      searchQuery: "",
+      dateFrom: "",
+      dateTo: "",
+      accountId: state.selectedAccountId ?? "",
+      categoryId: null,
+      showVoided: false,
+    },
+  });
 }
 
 describe("TransactionList", () => {

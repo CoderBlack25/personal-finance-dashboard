@@ -8,6 +8,7 @@ import { TransactionList } from "@/components/transactions/TransactionList";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { CsvImport } from "@/components/transactions/CsvImport";
 import { CategoryManager } from "@/components/categories/CategoryManager";
+import { useAccounts } from "@/hooks/useFinanceData";
 
 const MonthlySummary = lazy(() =>
   import("@/components/summary/MonthlySummary").then((mod) => ({
@@ -17,21 +18,18 @@ const MonthlySummary = lazy(() =>
 
 const App = () => {
   const loadAccounts = useFinanceStore((state) => state.loadAccounts);
-  const loadAllTransactions = useFinanceStore(
-    (state) => state.loadAllTransactions,
-  );
-  const accounts = useFinanceStore((state) => state.accounts);
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
   const activeView = useFinanceStore((state) => state.activeView);
   const setActiveView = useFinanceStore((state) => state.setActiveView);
+  const { data: accountData } = useAccounts();
   const [hasLoaded, setHasLoaded] = useState(false);
+  const accounts = accountData.accounts;
 
   useEffect(() => {
     loadAccounts()
-      .then(() => loadAllTransactions?.())
       .catch(() => {})
       .finally(() => setHasLoaded(true));
-  }, [loadAccounts, loadAllTransactions]);
+  }, [loadAccounts]);
 
   if (!hasLoaded) {
     return <p className="text-foreground">Loading...</p>;

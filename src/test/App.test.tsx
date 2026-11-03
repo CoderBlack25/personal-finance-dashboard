@@ -4,6 +4,11 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import App from "@/App";
 import { useFinanceStore } from "@/store/store";
+import {
+  useAccounts,
+  useAllTransactions,
+  useCategories,
+} from "@/hooks/useFinanceData";
 
 vi.mock("../components/accounts/AccountForm", () => ({
   AccountForm: () => <div>AccountForm stub</div>,
@@ -17,6 +22,12 @@ vi.mock("@/store/store", () => {
   return { useFinanceStore };
 });
 
+vi.mock("@/hooks/useFinanceData", () => ({
+  useAccounts: vi.fn(),
+  useAllTransactions: vi.fn(),
+  useCategories: vi.fn(),
+}));
+
 describe("App", () => {
   const mockLoadAccounts = vi.fn();
 
@@ -27,16 +38,38 @@ describe("App", () => {
   function mockState(
     overrides: Partial<{ accounts: any[]; selectedAccountId: string | null }>,
   ) {
+    const accounts = overrides.accounts ?? [];
+    vi.mocked(useAccounts).mockReturnValue({
+      data: { accounts, archivedAccounts: [] },
+      isLoading: false,
+      error: null,
+    });
+    vi.mocked(useAllTransactions).mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    });
+    vi.mocked(useCategories).mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    });
     vi.mocked(useFinanceStore).mockImplementation((selector: any) =>
       selector({
         loadAccounts: mockLoadAccounts,
-        accounts: [],
-        archivedAccounts: [],
-        transactions: [],
-        allTransactions: [],
-        categories: [],
         selectedAccountId: null,
         activeView: "transactions",
+        transactionFilters: {
+          searchQuery: "",
+          dateFrom: "",
+          dateTo: "",
+          accountId: "",
+          categoryId: null,
+          showVoided: false,
+        },
+        voidTransaction: vi.fn(),
+        updateTransactionFilters: vi.fn(),
+        resetTransactionFilters: vi.fn(),
         setActiveView: vi.fn(),
         ...overrides,
       }),

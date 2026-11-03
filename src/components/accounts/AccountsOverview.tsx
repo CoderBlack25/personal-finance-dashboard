@@ -1,4 +1,4 @@
-import { useFinanceStore } from "@/store/store";
+import { useAccounts, useAllTransactions } from "@/hooks/useFinanceData";
 import {
   computeAccountBalances,
   computeTotalBalance,
@@ -8,9 +8,14 @@ import { formatCentsToDollar } from "@/utils/money";
 import { Badge } from "@/components/ui/badge";
 
 export function AccountsOverview() {
-  const accounts = useFinanceStore((state) => state.accounts);
-  const allTransactions = useFinanceStore((state) => state.allTransactions);
-  const isLoading = useFinanceStore((state) => state.isLoading);
+  const { data: accountData, isLoading: accountsLoading, error: accountsError } =
+    useAccounts();
+  const {
+    data: allTransactions,
+    isLoading: transactionsLoading,
+    error: transactionsError,
+  } = useAllTransactions();
+  const { accounts } = accountData;
 
   const activeTransactions = filterTransactionsForAccounts(
     allTransactions,
@@ -19,11 +24,19 @@ export function AccountsOverview() {
   const balances = computeAccountBalances(accounts, activeTransactions);
   const total = computeTotalBalance(activeTransactions);
 
-  if (isLoading) {
+  if (accountsLoading || transactionsLoading) {
     return (
       <div className="flex h-32 items-center justify-center text-muted-foreground">
         Loading accounts...
       </div>
+    );
+  }
+
+  if (accountsError || transactionsError) {
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {accountsError ?? transactionsError}
+      </p>
     );
   }
 

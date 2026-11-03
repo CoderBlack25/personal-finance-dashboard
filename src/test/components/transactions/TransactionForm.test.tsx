@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { dollarsStringToCents } from "@/utils/money";
 import { useFinanceStore } from "@/store/store";
+import { useCategories } from "@/hooks/useFinanceData";
 
 describe("dollarsStringToCents", () => {
   it.each([
@@ -26,11 +27,20 @@ vi.mock("@/store/store", () => {
   return { useFinanceStore };
 });
 
+vi.mock("@/hooks/useFinanceData", () => ({
+  useCategories: vi.fn(),
+}));
+
 describe("TransactionForm", () => {
   const mockCreateTransaction = vi.fn();
 
   beforeEach(() => {
     mockCreateTransaction.mockReset();
+    vi.mocked(useCategories).mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    });
     vi.mocked(useFinanceStore).mockImplementation((selector: any) =>
       selector({
         selectedAccountId: "acc_1",

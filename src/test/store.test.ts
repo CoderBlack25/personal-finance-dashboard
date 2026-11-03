@@ -1,17 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useFinanceStore } from "@/store/store";
-import type { Account, Category, Transaction } from "@/types/types";
+import type { Account, Transaction } from "@/types/types";
 import {
   addAccount,
-  getAccounts,
-  addTransaction,
-  getTransactionsForAccount,
-  putTransaction,
-  getCategories,
   addCategory,
-  updateAccount,
-  deleteAccount,
+  addTransaction,
   countTransactionsForAccount,
+  deleteAccount,
+  getAccounts,
+  importTransactions,
+  putTransaction,
+  updateAccount,
+  voidTransaction,
+  voidTransactionBatch,
   CategoryValidationError,
 } from "@/services/db";
 
@@ -20,788 +21,234 @@ vi.mock("@/services/db", async (importOriginal) => {
   return {
     ...actual,
     addAccount: vi.fn(),
-    getAccounts: vi.fn(),
-    addTransaction: vi.fn(),
-    getTransactionsForAccount: vi.fn(),
-    putTransaction: vi.fn(),
-    getCategories: vi.fn(),
     addCategory: vi.fn(),
-    updateAccount: vi.fn(),
-    deleteAccount: vi.fn(),
+    addTransaction: vi.fn(),
     countTransactionsForAccount: vi.fn(),
+    deleteAccount: vi.fn(),
+    getAccounts: vi.fn(),
+    importTransactions: vi.fn(),
+    putTransaction: vi.fn(),
+    updateAccount: vi.fn(),
     voidTransaction: vi.fn(),
     voidTransactionBatch: vi.fn(),
   };
 });
 
-describe("store", () => {
+const account: Account = {
+  id: "account-1",
+  name: "Checking",
+  type: "checking",
+  archived: false,
+};
+
+const transaction: Transaction = {
+  id: "transaction-1",
+  accountId: account.id,
+  categoryId: null,
+  amountInCents: -500,
+  date: "2026-08-01",
+  description: "Coffee",
+};
+
+describe("UI store", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // getCategories is called by loadAccounts via Promise.all; default to empty list.
-    vi.mocked(getCategories).mockResolvedValue([]);
-
-    // selectAccount is called after load and after archiving or deleting.
-    vi.mocked(getTransactionsForAccount).mockResolvedValue([]);
-
+    vi.mocked(getAccounts).mockResolvedValue([account]);
+    vi.mocked(countTransactionsForAccount).mockResolvedValue(0);
     useFinanceStore.setState({
-      accounts: [],
-      archivedAccounts: [],
-      transactions: [],
-      categories: [],
       selectedAccountId: null,
       activeView: "transactions",
+      transactionFilters: {
+        searchQuery: "",
+        dateFrom: "",
+        dateTo: "",
+        accountId: "",
+        categoryId: null,
+        showVoided: false,
+      },
+      summaryFilters: {
+        dateFrom: "",
+        dateTo: "",
+        year: new Date().getFullYear(),
+        month: new Date().getMonth() + 1,
+      },
+      dataRevision: 0,
       isLoading: false,
       error: null,
     });
   });
 
-  it("loads accounts successfully", async () => {
-    const accounts: Account[] = [
-      {
-        id: "account-1",
-        name: "Checking",
-        type: "checking",
-        archived: false,
-      },
-      {
-        id: "account-2",
-        name: "Savings",
-        type: "savings",
-        archived: false,
-      },
-    ];
-
-    vi.mocked(getAccounts).mockResolvedValue(accounts);
-
+  it("initializes the selected account without retaining queried records", async () => {
     await useFinanceStore.getState().loadAccounts();
-
     const state = useFinanceStore.getState();
 
-    expect(state.accounts).toEqual(accounts);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBeNull();
+    expect(state.selectedAccountId).toBe(account.id);
+    expect(state).not.toHaveProperty("accounts");
+    expect(state).not.toHaveProperty("transactions");
+    expect(state).not.toHaveProperty("categories");
   });
 
-  it("automatically selects the first account when no account is selected", async () => {
-    const accounts: Account[] = [
-      {
-        id: "account-1",
-        name: "Checking",
-        type: "checking",
-        archived: false,
-      },
-      {
-        id: "account-2",
-        name: "Savings",
-        type: "savings",
-        archived: false,
-      },
-    ];
-
-    const transactions: Transaction[] = [
-      {
-        id: "transaction-1",
-        accountId: "account-1",
-        categoryId: null,
-        description: "Groceries",
-        amountInCents: -5000,
-        date: "2026-08-28",
-      },
-    ];
-
-    vi.mocked(getAccounts).mockResolvedValue(accounts);
-    vi.mocked(getTransactionsForAccount).mockResolvedValue(transactions);
-
+  it("preserves a selected active account and falls back when it is unavailable", async () => {
+    useFinanceStore.setState({ selectedAccountId: account.id });
     await useFinanceStore.getState().loadAccounts();
+    expect(useFinanceStore.getState().selectedAccountId).toBe(account.id);
 
-    const state = useFinanceStore.getState();
-
-    expect(state.selectedAccountId).toBe("account-1");
-    expect(state.transactions).toEqual(transactions);
-    expect(getTransactionsForAccount).toHaveBeenCalledWith("account-1");
+    vi.mocked(getAccounts).mockResolvedValue([
+      { ...account, archived: true },
+    ]);
+    await useFinanceStore.getState().loadAccounts();
+    expect(useFinanceStore.getState().selectedAccountId).toBeNull();
   });
 
-  it("loads the selected account's transactions when the selection was restored from persisted state", async () => {
-    const accounts: Account[] = [
-      {
-        id: "account-1",
-        name: "Checking",
-        type: "checking",
-        archived: false,
-      },
-      {
-        id: "account-2",
-        name: "Savings",
-        type: "savings",
-        archived: false,
-      },
-    ];
-
-    const transactions: Transaction[] = [
-      {
-        id: "transaction-1",
-        accountId: "account-2",
-        categoryId: null,
-        description: "Groceries",
-        amountInCents: -5000,
-        date: "2026-08-28",
-      },
-    ];
-
-    // A hard reload restores the selection from persisted state, but not the
-    // transactions that belong to it.
-    useFinanceStore.setState({
-      selectedAccountId: "account-2",
-      transactions: [],
+  it("updates and resets transaction filters in Zustand", () => {
+    const store = useFinanceStore.getState();
+    store.updateTransactionFilters({
+      searchQuery: "coffee",
+      dateFrom: "2026-08-01",
+      categoryId: "food",
+      accountId: account.id,
+    });
+    expect(useFinanceStore.getState().transactionFilters).toMatchObject({
+      searchQuery: "coffee",
+      dateFrom: "2026-08-01",
+      categoryId: "food",
+      accountId: account.id,
     });
 
-    vi.mocked(getAccounts).mockResolvedValue(accounts);
-    vi.mocked(getTransactionsForAccount).mockResolvedValue(transactions);
-
-    await useFinanceStore.getState().loadAccounts();
-
-    const state = useFinanceStore.getState();
-
-    expect(state.selectedAccountId).toBe("account-2");
-    expect(state.transactions).toEqual(transactions);
-    expect(getTransactionsForAccount).toHaveBeenCalledWith("account-2");
-  });
-
-  it("falls back to an active account when the restored selection was archived", async () => {
-    const accounts: Account[] = [
-      {
-        id: "account-1",
-        name: "Checking",
-        type: "checking",
-        archived: false,
-      },
-    ];
-
-    const transactions: Transaction[] = [
-      {
-        id: "transaction-1",
-        accountId: "account-1",
-        categoryId: null,
-        description: "Groceries",
-        amountInCents: -5000,
-        date: "2026-08-28",
-      },
-    ];
-
-    // The persisted selection points at an account that has since been
-    // archived, so it is no longer a valid target.
-    useFinanceStore.setState({
-      selectedAccountId: "account-2",
-      transactions: [],
+    useFinanceStore.getState().resetTransactionFilters(null);
+    expect(useFinanceStore.getState().transactionFilters).toEqual({
+      searchQuery: "",
+      dateFrom: "",
+      dateTo: "",
+      accountId: "",
+      categoryId: null,
+      showVoided: false,
     });
-
-    vi.mocked(getAccounts).mockResolvedValue(accounts);
-    vi.mocked(getTransactionsForAccount).mockResolvedValue(transactions);
-
-    await useFinanceStore.getState().loadAccounts();
-
-    const state = useFinanceStore.getState();
-
-    expect(state.selectedAccountId).toBe("account-1");
-    expect(state.transactions).toEqual(transactions);
   });
 
-  it("sets an error when loading accounts fails", async () => {
-    vi.mocked(getAccounts).mockRejectedValue(new Error("Database error"));
-
-    await useFinanceStore.getState().loadAccounts();
-
-    const state = useFinanceStore.getState();
-
-    expect(state.accounts).toEqual([]);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBe("Could not load accounts.");
+  it("stores summary date-range filters", () => {
+    useFinanceStore.getState().updateSummaryFilters({
+      dateFrom: "2026-08-01",
+      dateTo: "2026-08-31",
+      year: 2026,
+      month: 8,
+    });
+    expect(useFinanceStore.getState().summaryFilters).toEqual({
+      dateFrom: "2026-08-01",
+      dateTo: "2026-08-31",
+      year: 2026,
+      month: 8,
+    });
   });
 
-  it("creates an account and selects it", async () => {
-    const input = {
-      name: "Checking",
-      type: "checking" as const,
-    };
-
-    const account: Account = {
-      id: "account-1",
-      name: "Checking",
-      type: "checking",
-      archived: false,
-    };
-
+  it("selects a newly created account and invalidates queried data", async () => {
     vi.mocked(addAccount).mockResolvedValue(account);
 
-    await useFinanceStore.getState().createAccount(input);
-
-    const state = useFinanceStore.getState();
-
-    expect(addAccount).toHaveBeenCalledWith(input);
-    expect(state.accounts).toEqual([account]);
-    expect(state.selectedAccountId).toBe("account-1");
-    expect(state.transactions).toEqual([]);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBeNull();
-  });
-
-  it("adds a new account without removing existing accounts", async () => {
-    const existingAccount: Account = {
-      id: "account-1",
-      name: "Checking",
-      type: "checking",
-      archived: false,
-    };
-
-    const newAccount: Account = {
-      id: "account-2",
-      name: "Savings",
-      type: "savings",
-      archived: false,
-    };
-
-    useFinanceStore.setState({
-      accounts: [existingAccount],
-      transactions: [],
-      selectedAccountId: "account-1",
-      isLoading: false,
-      error: null,
-    });
-
-    vi.mocked(addAccount).mockResolvedValue(newAccount);
-
     await useFinanceStore.getState().createAccount({
-      name: "Savings",
-      type: "savings",
+      name: account.name,
+      type: account.type,
     });
 
-    const state = useFinanceStore.getState();
-
-    expect(state.accounts).toEqual([existingAccount, newAccount]);
-
-    expect(state.selectedAccountId).toBe("account-2");
+    expect(useFinanceStore.getState().selectedAccountId).toBe(account.id);
+    expect(useFinanceStore.getState().dataRevision).toBe(1);
+    expect(useFinanceStore.getState()).not.toHaveProperty("accounts");
   });
 
-  it("selects an account and loads its transactions", async () => {
-    const transactions: Transaction[] = [
-      {
-        id: "transaction-1",
-        accountId: "account-1",
-        categoryId: null,
-        description: "Groceries",
-        amountInCents: -5000,
-        date: "2026-08-28",
-      },
-    ];
-
-    vi.mocked(getTransactionsForAccount).mockResolvedValue(transactions);
-
-    await useFinanceStore.getState().selectAccount("account-1");
-
-    const state = useFinanceStore.getState();
-
-    expect(getTransactionsForAccount).toHaveBeenCalledWith("account-1");
-    expect(state.selectedAccountId).toBe("account-1");
-    expect(state.transactions).toEqual(transactions);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBeNull();
-  });
-
-  it("sets an error when loading transactions fails", async () => {
-    vi.mocked(getTransactionsForAccount).mockRejectedValue(
-      new Error("Database error"),
-    );
-
-    await useFinanceStore.getState().selectAccount("account-1");
-
-    const state = useFinanceStore.getState();
-
-    expect(state.selectedAccountId).toBe("account-1");
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBe("Could not load transactions.");
-  });
-
-  it("creates a transaction and adds it to the store", async () => {
-    const input: Omit<Transaction, "id"> = {
-      accountId: "account-1",
-      categoryId: null,
-      description: "Groceries",
-      amountInCents: -5000,
-      date: "2026-08-28",
-    };
-
-    const transaction: Transaction = {
-      id: "transaction-1",
-      ...input,
-    };
-
+  it("invalidates data after transaction and category mutations", async () => {
     vi.mocked(addTransaction).mockResolvedValue(transaction);
-
-    await useFinanceStore.getState().createTransaction(input);
-
-    const state = useFinanceStore.getState();
-
-    expect(addTransaction).toHaveBeenCalledWith({
-      ...input,
-      batchId: null,
-    });
-    expect(state.transactions).toEqual([transaction]);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBeNull();
-  });
-
-  it("sets an error when creating a transaction fails", async () => {
-    vi.mocked(addTransaction).mockRejectedValue(new Error("Database error"));
-
-    await useFinanceStore.getState().createTransaction({
-      accountId: "account-1",
-      categoryId: null,
-      description: "Groceries",
-      amountInCents: -5000,
-      date: "2026-08-28",
-    });
-
-    const state = useFinanceStore.getState();
-
-    expect(state.transactions).toEqual([]);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBe("Could not save transaction.");
-  });
-
-  it("updates an existing transaction", async () => {
-    const originalTransaction: Transaction = {
-      id: "transaction-1",
-      accountId: "account-1",
-      categoryId: null,
-      description: "Groceries",
-      amountInCents: -5000,
-      date: "2026-08-28",
-    };
-
-    const anotherTransaction: Transaction = {
-      id: "transaction-2",
-      accountId: "account-1",
-      categoryId: null,
-      description: "Transport",
-      amountInCents: -2000,
-      date: "2026-08-27",
-    };
-
-    const updatedTransaction: Transaction = {
-      ...originalTransaction,
-      description: "Updated groceries",
-      amountInCents: -6000,
-    };
-
-    useFinanceStore.setState({
-      transactions: [originalTransaction, anotherTransaction],
-    });
-
     vi.mocked(putTransaction).mockResolvedValue(undefined);
-
-    await useFinanceStore.getState().updateTransaction(updatedTransaction);
-
-    const state = useFinanceStore.getState();
-
-    expect(putTransaction).toHaveBeenCalledWith(updatedTransaction);
-
-    expect(state.transactions).toEqual([
-      updatedTransaction,
-      anotherTransaction,
-    ]);
-
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBeNull();
-  });
-
-  it("sets an error when updating a transaction fails", async () => {
-    const transaction: Transaction = {
-      id: "transaction-1",
-      accountId: "account-1",
-      categoryId: null,
-      description: "Groceries",
-      amountInCents: -5000,
-      date: "2026-08-28",
-    };
-
-    useFinanceStore.setState({
-      transactions: [transaction],
+    vi.mocked(voidTransaction).mockResolvedValue({
+      ...transaction,
+      status: "void",
+    });
+    vi.mocked(addCategory).mockResolvedValue({
+      id: "category-1",
+      name: "Food",
+      color: "#22c55e",
     });
 
-    vi.mocked(putTransaction).mockRejectedValue(new Error("Database error"));
+    const store = useFinanceStore.getState();
+    await store.createTransaction(transaction);
+    await store.updateTransaction(transaction);
+    await store.voidTransaction(transaction.id);
+    await store.createCategory({ name: "Food", color: "#22c55e" });
 
-    await useFinanceStore.getState().updateTransaction(transaction);
-
-    const state = useFinanceStore.getState();
-
-    expect(state.transactions).toEqual([transaction]);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBe("Could not update transaction.");
+    expect(useFinanceStore.getState().dataRevision).toBe(4);
   });
 
-  it("clears the error when the active view changes", () => {
-    useFinanceStore.setState({ error: "Could not save transaction." });
+  it("reports transaction errors without persisting domain data in the store", async () => {
+    vi.mocked(addTransaction).mockRejectedValue(new Error("storage failed"));
 
-    useFinanceStore.getState().setActiveView("categories");
+    await useFinanceStore.getState().createTransaction(transaction);
 
-    const state = useFinanceStore.getState();
-
-    expect(state.activeView).toBe("categories");
-    expect(state.error).toBeNull();
+    expect(useFinanceStore.getState().error).toBe("Could not save transaction.");
+    expect(useFinanceStore.getState()).not.toHaveProperty("allTransactions");
   });
 
-  it("creates a category and reports success", async () => {
-    const category: Category = {
-      id: "cat-1",
-      name: "Coffee",
-      color: "#14b8a6",
-    };
-
-    vi.mocked(addCategory).mockResolvedValue(category);
-
-    const failure = await useFinanceStore.getState().createCategory({
-      name: "Coffee",
-      color: "#14b8a6",
-    });
-
-    const state = useFinanceStore.getState();
-
-    expect(failure).toBeNull();
-    expect(state.categories).toEqual([category]);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBeNull();
-  });
-
-  it("reports a validation failure when a category has an invalid color", async () => {
-    vi.mocked(addCategory).mockRejectedValue(
-      new CategoryValidationError("Pick a valid color."),
-    );
-
-    const failure = await useFinanceStore.getState().createCategory({
-      name: "Coffee",
-      color: "not-a-color",
-    });
-
-    const state = useFinanceStore.getState();
-
-    expect(failure).toBe("Pick a valid color.");
-    expect(state.error).toBe("Pick a valid color.");
-  });
-
-  it("reports a generic failure when creating a category fails", async () => {
-    vi.mocked(addCategory).mockRejectedValue(new Error("Database error"));
-
-    const failure = await useFinanceStore.getState().createCategory({
-      name: "Coffee",
-      color: "#14b8a6",
-    });
-
-    const state = useFinanceStore.getState();
-
-    expect(failure).toBe("Could not create category.");
-    expect(state.error).toBe("Could not create category.");
-  });
-
-  it("splits accounts into active and archived when loading", async () => {
-    vi.mocked(getAccounts).mockResolvedValue([
-      { id: "account-1", name: "Checking", type: "checking", archived: false },
-      { id: "account-2", name: "Old Card", type: "credit", archived: true },
-    ]);
-
-    await useFinanceStore.getState().loadAccounts();
-
-    const state = useFinanceStore.getState();
-
-    expect(state.accounts.map((account) => account.id)).toEqual(["account-1"]);
-    expect(state.archivedAccounts.map((account) => account.id)).toEqual([
-      "account-2",
-    ]);
-  });
-
-  it("archives an account and keeps it restorable", async () => {
-    const account: Account = {
-      id: "account-1",
-      name: "Checking",
-      type: "checking",
-      archived: false,
-    };
-
-    useFinanceStore.setState({ accounts: [account] });
+  it("archives and restores accounts through IndexedDB", async () => {
+    vi.mocked(getAccounts).mockResolvedValue([account]);
     vi.mocked(updateAccount).mockResolvedValue(undefined);
 
-    const failure = await useFinanceStore.getState().archiveAccount(
-      "account-1",
-    );
-
-    const state = useFinanceStore.getState();
-
-    expect(failure).toBeNull();
+    expect(await useFinanceStore.getState().archiveAccount(account.id)).toBeNull();
     expect(updateAccount).toHaveBeenCalledWith({
       ...account,
       archived: true,
     });
-    expect(state.accounts).toEqual([]);
-    expect(state.archivedAccounts).toEqual([{ ...account, archived: true }]);
-    expect(state.error).toBeNull();
-  });
+    expect(useFinanceStore.getState().dataRevision).toBe(1);
 
-  it("restores an archived account", async () => {
-    const archived: Account = {
-      id: "account-2",
-      name: "Old Card",
-      type: "credit",
-      archived: true,
-    };
-
-    useFinanceStore.setState({ archivedAccounts: [archived] });
-    vi.mocked(updateAccount).mockResolvedValue(undefined);
-
-    const failure = await useFinanceStore.getState().restoreAccount(
-      "account-2",
-    );
-
-    const state = useFinanceStore.getState();
-
-    expect(failure).toBeNull();
-    expect(updateAccount).toHaveBeenCalledWith({
-      ...archived,
+    vi.mocked(getAccounts).mockResolvedValue([{ ...account, archived: true }]);
+    expect(await useFinanceStore.getState().restoreAccount(account.id)).toBeNull();
+    expect(updateAccount).toHaveBeenLastCalledWith({
+      ...account,
       archived: false,
     });
-    expect(state.archivedAccounts).toEqual([]);
-    expect(state.accounts).toEqual([{ ...archived, archived: false }]);
+    expect(useFinanceStore.getState().dataRevision).toBe(2);
   });
 
-  it("moves the selection when the selected account is archived", async () => {
-    const accounts: Account[] = [
-      { id: "account-1", name: "Checking", type: "checking", archived: false },
-      { id: "account-2", name: "Savings", type: "savings", archived: false },
-    ];
+  it("prevents deleting accounts with transactions and deletes empty accounts", async () => {
+    vi.mocked(countTransactionsForAccount).mockResolvedValueOnce(1);
+    const failure = await useFinanceStore.getState().deleteAccount(account.id);
+    expect(failure).toMatch(/still has transactions/i);
+    expect(deleteAccount).not.toHaveBeenCalled();
 
-    useFinanceStore.setState({
-      accounts,
-      selectedAccountId: "account-1",
-    });
-    vi.mocked(updateAccount).mockResolvedValue(undefined);
-    vi.mocked(getTransactionsForAccount).mockResolvedValue([]);
-
-    await useFinanceStore.getState().archiveAccount("account-1");
-
-    const state = useFinanceStore.getState();
-
-    expect(state.selectedAccountId).toBe("account-2");
+    vi.mocked(countTransactionsForAccount).mockResolvedValueOnce(0);
+    vi.mocked(deleteAccount).mockResolvedValue(undefined);
+    expect(await useFinanceStore.getState().deleteAccount(account.id)).toBeNull();
+    expect(deleteAccount).toHaveBeenCalledWith(account.id);
+    expect(useFinanceStore.getState().dataRevision).toBe(1);
   });
 
-  it("leaves the selection untouched when a different account is archived", async () => {
-    const accounts: Account[] = [
-      { id: "account-1", name: "Checking", type: "checking", archived: false },
-      { id: "account-2", name: "Savings", type: "savings", archived: false },
-    ];
+  it("invalidates queried data after imports and batch rollback", async () => {
+    vi.mocked(importTransactions).mockResolvedValue([transaction]);
+    vi.mocked(voidTransactionBatch).mockResolvedValue(1);
 
-    const transactions: Transaction[] = [
-      {
-        id: "transaction-1",
-        accountId: "account-1",
-        categoryId: null,
-        description: "Groceries",
-        amountInCents: -5000,
-        date: "2026-08-28",
-      },
-    ];
-
-    useFinanceStore.setState({
-      accounts,
-      selectedAccountId: "account-1",
-      transactions,
-    });
-    vi.mocked(updateAccount).mockResolvedValue(undefined);
-
-    await useFinanceStore.getState().archiveAccount("account-2");
-
-    const state = useFinanceStore.getState();
-
-    expect(state.selectedAccountId).toBe("account-1");
-    expect(state.transactions).toEqual(transactions);
-    expect(getTransactionsForAccount).not.toHaveBeenCalled();
-  });
-
-  it("clears the selection when the last account is archived", async () => {
-    const account: Account = {
-      id: "account-1",
-      name: "Checking",
-      type: "checking",
-      archived: false,
-    };
-
-    useFinanceStore.setState({
-      accounts: [account],
-      selectedAccountId: "account-1",
+    const batchId = await useFinanceStore.getState().importTransactions({
+      accountId: account.id,
       transactions: [
         {
-          id: "transaction-1",
-          accountId: "account-1",
+          amountInCents: transaction.amountInCents,
+          date: transaction.date,
+          description: transaction.description,
           categoryId: null,
-          description: "Groceries",
-          amountInCents: -5000,
-          date: "2026-08-28",
         },
       ],
     });
-    vi.mocked(updateAccount).mockResolvedValue(undefined);
-
-    await useFinanceStore.getState().archiveAccount("account-1");
-
-    const state = useFinanceStore.getState();
-
-    expect(state.selectedAccountId).toBeNull();
-    expect(state.transactions).toEqual([]);
+    expect(batchId).toEqual(expect.any(String));
+    expect(await useFinanceStore.getState().voidTransactionBatch(batchId!)).toBe(
+      1,
+    );
+    expect(useFinanceStore.getState().dataRevision).toBe(2);
   });
 
-  it("refuses to delete an account that still has transactions", async () => {
-    useFinanceStore.setState({
-      accounts: [
-        { id: "account-1", name: "Checking", type: "checking", archived: false },
-      ],
-    });
-    vi.mocked(countTransactionsForAccount).mockResolvedValue(3);
-
-    const failure = await useFinanceStore.getState().deleteAccount(
-      "account-1",
+  it("preserves category validation errors", async () => {
+    vi.mocked(addCategory).mockRejectedValue(
+      new CategoryValidationError("Invalid color."),
     );
 
-    const state = useFinanceStore.getState();
-
-    expect(failure).toBe(
-      "This account still has transactions. Archive it instead.",
-    );
-    expect(deleteAccount).not.toHaveBeenCalled();
-    expect(state.accounts).toHaveLength(1);
-  });
-
-  it("deletes an account that has no transactions", async () => {
-    useFinanceStore.setState({
-      accounts: [
-        { id: "account-1", name: "Checking", type: "checking", archived: false },
-      ],
-      selectedAccountId: "account-1",
-    });
-    vi.mocked(countTransactionsForAccount).mockResolvedValue(0);
-    vi.mocked(deleteAccount).mockResolvedValue(undefined);
-
-    const failure = await useFinanceStore.getState().deleteAccount(
-      "account-1",
-    );
-
-    const state = useFinanceStore.getState();
-
-    expect(failure).toBeNull();
-    expect(deleteAccount).toHaveBeenCalledWith("account-1");
-    expect(state.accounts).toEqual([]);
-    expect(state.selectedAccountId).toBeNull();
-    expect(state.error).toBeNull();
-  });
-
-  it("reports a failure when archiving an account fails", async () => {
-    useFinanceStore.setState({
-      accounts: [
-        { id: "account-1", name: "Checking", type: "checking", archived: false },
-      ],
-    });
-    vi.mocked(updateAccount).mockRejectedValue(new Error("Database error"));
-
-    const failure = await useFinanceStore.getState().archiveAccount(
-      "account-1",
-    );
-
-    const state = useFinanceStore.getState();
-
-    expect(failure).toBe("Could not archive account.");
-    expect(state.error).toBe("Could not archive account.");
-  });
-
-  it("updates an existing account in store", async () => {
-    const existingAccount: Account = {
-      id: "account-1",
-      name: "Checking",
-      type: "checking",
-      archived: false,
-    };
-
-    useFinanceStore.setState({
-      accounts: [existingAccount],
-      selectedAccountId: "account-1",
-    });
-
-    vi.mocked(updateAccount).mockResolvedValue(undefined);
-
-    const updated = {
-      ...existingAccount,
-      name: "Updated Checking",
-      type: "savings" as const,
-    };
-
-    const failure = await useFinanceStore.getState().updateAccount(updated);
-
-    const state = useFinanceStore.getState();
-
-    expect(failure).toBeNull();
-    expect(updateAccount).toHaveBeenCalledWith(updated);
-    expect(state.accounts).toEqual([updated]);
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBeNull();
-  });
-
-  it("updates an existing archived account in store", async () => {
-    const archivedAccount: Account = {
-      id: "account-2",
-      name: "Old Credit",
-      type: "credit",
-      archived: true,
-    };
-
-    useFinanceStore.setState({
-      archivedAccounts: [archivedAccount],
-    });
-
-    vi.mocked(updateAccount).mockResolvedValue(undefined);
-
-    const updated = {
-      ...archivedAccount,
-      name: "Renamed Old Credit",
-    };
-
-    const failure = await useFinanceStore.getState().updateAccount(updated);
-
-    const state = useFinanceStore.getState();
-
-    expect(failure).toBeNull();
-    expect(updateAccount).toHaveBeenCalledWith(updated);
-    expect(state.archivedAccounts).toEqual([updated]);
-  });
-
-  it("sets an error when updating an account fails", async () => {
-    const account: Account = {
-      id: "account-1",
-      name: "Checking",
-      type: "checking",
-      archived: false,
-    };
-
-    useFinanceStore.setState({
-      accounts: [account],
-    });
-
-    vi.mocked(updateAccount).mockRejectedValue(new Error("Database error"));
-
-    const failure = await useFinanceStore.getState().updateAccount({
-      ...account,
-      name: "New Name",
-    });
-
-    const state = useFinanceStore.getState();
-
-    expect(failure).toBe("Could not update account.");
-    expect(state.error).toBe("Could not update account.");
-    expect(state.accounts).toEqual([account]);
+    expect(
+      await useFinanceStore
+        .getState()
+        .createCategory({ name: "Food", color: "red" }),
+    ).toBe("Invalid color.");
   });
 });

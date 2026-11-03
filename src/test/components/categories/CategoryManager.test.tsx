@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CategoryManager } from "@/components/categories/CategoryManager";
 import { useFinanceStore } from "@/store/store";
+import { useCategories } from "@/hooks/useFinanceData";
 
 vi.mock("@/store/store", () => {
   const useFinanceStore = vi.fn() as any;
@@ -11,15 +12,23 @@ vi.mock("@/store/store", () => {
   return { useFinanceStore };
 });
 
+vi.mock("@/hooks/useFinanceData", () => ({
+  useCategories: vi.fn(),
+}));
+
 describe("CategoryManager", () => {
   const mockCreateCategory = vi.fn();
 
   function mockState(
     overrides: Partial<{ categories: any[]; error: string | null }> = {},
   ) {
+    vi.mocked(useCategories).mockReturnValue({
+      data: overrides.categories ?? [],
+      isLoading: false,
+      error: null,
+    });
     vi.mocked(useFinanceStore).mockImplementation((selector: any) =>
       selector({
-        categories: [],
         createCategory: mockCreateCategory,
         error: null,
         ...overrides,

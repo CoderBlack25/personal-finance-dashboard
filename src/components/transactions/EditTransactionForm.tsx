@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFinanceStore } from "@/store/store";
+import { useCategories } from "@/hooks/useFinanceData";
 import { dollarsStringToCents, splitAbsoluteCents } from "@/utils/money";
 import {
   type TransactionFormValues,
@@ -39,7 +40,7 @@ export function EditTransactionForm({
   onDone,
 }: EditTransactionFormProps) {
   const updateTransaction = useFinanceStore((state) => state.updateTransaction);
-  const categories = useFinanceStore((state) => state.categories);
+  const { data: categories, error: categoriesError } = useCategories();
   const storeError = useFinanceStore((state) => state.error);
 
   const {
@@ -196,6 +197,11 @@ export function EditTransactionForm({
               </option>
             ))}
           </Select>
+          {categoriesError && (
+            <p role="alert" className="text-sm text-destructive">
+              {categoriesError}
+            </p>
+          )}
         </div>
 
         {storeError && (

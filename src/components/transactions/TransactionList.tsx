@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { EditTransactionForm } from "@/components/transactions/EditTransactionForm";
 import { useFinanceStore } from "@/store/store";
+import {
+  useAccounts,
+  useAllTransactions,
+  useCategories,
+} from "@/hooks/useFinanceData";
 import { formatCentsToDollar } from "@/utils/money";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -27,42 +32,47 @@ function debounce<Args extends unknown[]>(
 
 export function TransactionList() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
-  const accounts = useFinanceStore((state) => state.accounts);
-  const transactions = useFinanceStore((state) => state.transactions);
-  const allTransactions = useFinanceStore((state) => state.allTransactions);
-  const categories = useFinanceStore((state) => state.categories);
+  const { data: accountData, error: accountsError } = useAccounts();
+  const { data: allTransactions, error: transactionsError } =
+    useAllTransactions();
+  const { data: categories, error: categoriesError } = useCategories();
+  const { accounts } = accountData;
   const voidTransaction = useFinanceStore((state) => state.voidTransaction);
+  const transactionFilters = useFinanceStore(
+    (state) => state.transactionFilters,
+  );
+  const updateTransactionFilters = useFinanceStore(
+    (state) => state.updateTransactionFilters,
+  );
+  const resetTransactionFilters = useFinanceStore(
+    (state) => state.resetTransactionFilters,
+  );
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [accountFilterId, setAccountFilterId] = useState(
-    selectedAccountId ?? ALL_ACCOUNTS,
-  );
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [showVoided, setShowVoided] = useState(false);
+  const {
+    searchQuery,
+    dateFrom,
+    dateTo,
+    accountId: accountFilterId,
+    categoryId,
+    showVoided,
+  } = transactionFilters;
 
   useEffect(() => {
-    const handler = debounce(() => setDebouncedSearch(search), 300);
+    const handler = debounce(
+      () => setDebouncedSearch(searchQuery),
+      300,
+    );
     handler();
-  }, [search]);
+  }, [searchQuery]);
 
   useEffect(() => {
-    setShowVoided(false);
-    setSearch("");
-    setDebouncedSearch("");
-    setDateFrom("");
-    setDateTo("");
-    setAccountFilterId(selectedAccountId ?? ALL_ACCOUNTS);
-    setCategoryId(null);
+    resetTransactionFilters(selectedAccountId);
     setEditingId(null);
-  }, [selectedAccountId]);
+  }, [selectedAccountId, resetTransactionFilters]);
 
-  const availableTransactions =
-    allTransactions.length > 0 ? allTransactions : transactions;
-  const accountScopedTransactions = availableTransactions.filter(
+  const accountScopedTransactions = allTransactions.filter(
     (transaction) =>
       accountFilterId === ALL_ACCOUNTS ||
       transaction.accountId === accountFilterId,
@@ -70,8 +80,8 @@ export function TransactionList() {
   const sourceTransactions = showVoided
     ? accountScopedTransactions
     : accountScopedTransactions.filter(isPostedTransaction);
-  const transactionsByAccount = new Map<string, typeof availableTransactions>();
-  for (const transaction of availableTransactions) {
+  const transactionsByAccount = new Map<string, typeof allTransactions>();
+  for (const transaction of allTransactions) {
     const accountTransactions =
       transactionsByAccount.get(transaction.accountId) ?? [];
     accountTransactions.push(transaction);
@@ -125,7 +135,7 @@ export function TransactionList() {
             type="button"
             variant={showVoided ? "default" : "outline"}
             size="sm"
-            onClick={() => setShowVoided((prev) => !prev)}
+            onClick={() =>             updateTransactionFilters({ showVoided: !showVoided })}
           >
             {showVoided ? "Hide voided" : "Show voided"}
           </Button>
@@ -146,7 +156,7 @@ export function TransactionList() {
               id="transaction-filter-account"
               value={accountFilterId}
               onChange={(event) => {
-                setAccountFilterId(event.target.value);
+                updateTransactionFilters({ accountId: event.target.value });
                 setEditingId(null);
               }}
             >
@@ -171,8 +181,10 @@ export function TransactionList() {
                 id="transaction-search"
                 type="text"
                 placeholder="Search descriptions"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                value={searchQuery}
+                onChange={(event) =>
+                  updateTransactionFilters({ searchQuery: event.target.value })
+                }
                 className="pl-9 w-full"
               />
             </div>
@@ -188,7 +200,9 @@ export function TransactionList() {
               id="transaction-date-from"
               type="date"
               value={dateFrom}
-              onChange={(event) => setDateFrom(event.target.value)}
+              onChange={(event) =>
+                updateTransactionFilters({ dateFrom: event.target.value })
+              }
               className="w-40"
             />
           </div>
@@ -203,7 +217,9 @@ export function TransactionList() {
               id="transaction-date-to"
               type="date"
               value={dateTo}
-              onChange={(event) => setDateTo(event.target.value)}
+              onChange={(event) =>
+                updateTransactionFilters({ dateTo: event.target.value })
+              }
               className="w-40"
             />
           </div>
@@ -217,7 +233,11 @@ export function TransactionList() {
             <Select
               id="transaction-filter-category"
               value={categoryId ?? ""}
-              onChange={(event) => setCategoryId(event.target.value || null)}
+              onChange={(event) =>
+                updateTransactionFilters({
+                  categoryId: event.target.value || null,
+                })
+              }
             >
               <option value="">— All categories —</option>
               {categories.map((cat) => (
@@ -229,6 +249,12 @@ export function TransactionList() {
           </div>
         </form>
       </div>
+
+      {(accountsError || transactionsError || categoriesError) && (
+        <p role="alert" className="mb-4 text-sm text-destructive">
+          {accountsError ?? transactionsError ?? categoriesError}
+        </p>
+      )}
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">

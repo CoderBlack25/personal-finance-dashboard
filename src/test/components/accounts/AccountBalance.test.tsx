@@ -3,12 +3,17 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AccountBalance } from "@/components/accounts/AccountBalance";
 import { useFinanceStore } from "@/store/store";
+import { useAllTransactions } from "@/hooks/useFinanceData";
 
 vi.mock("@/store/store", () => {
   const useFinanceStore = vi.fn() as any;
   useFinanceStore.getState = vi.fn();
   return { useFinanceStore };
 });
+
+vi.mock("@/hooks/useFinanceData", () => ({
+  useAllTransactions: vi.fn(),
+}));
 
 describe("AccountBalance", () => {
   function mockState(
@@ -21,11 +26,14 @@ describe("AccountBalance", () => {
     vi.mocked(useFinanceStore).mockImplementation((selector: any) =>
       selector({
         selectedAccountId: "account-1",
-        transactions: [],
-        allTransactions: [],
         ...overrides,
       }),
     );
+    vi.mocked(useAllTransactions).mockReturnValue({
+      data: overrides.allTransactions ?? [],
+      isLoading: false,
+      error: null,
+    });
   }
 
   beforeEach(() => {

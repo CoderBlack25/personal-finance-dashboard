@@ -6,6 +6,7 @@ import {
 } from "@/schemas/transactionSchema";
 import { format } from "date-fns";
 import { useFinanceStore } from "@/store/store";
+import { useCategories } from "@/hooks/useFinanceData";
 import { dollarsStringToCents } from "@/utils/money";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ function getDefaultFormValues(): TransactionFormValues {
 export function TransactionForm() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
   const createTransaction = useFinanceStore((state) => state.createTransaction);
-  const categories = useFinanceStore((state) => state.categories);
+  const { data: categories, error: categoriesError } = useCategories();
   const storeError = useFinanceStore((state) => state.error);
 
   const {
@@ -188,6 +189,11 @@ export function TransactionForm() {
               </option>
             ))}
           </Select>
+          {categoriesError && (
+            <p role="alert" className="text-sm text-destructive">
+              {categoriesError}
+            </p>
+          )}
         </div>
 
         {storeError && (
