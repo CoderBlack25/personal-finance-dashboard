@@ -6,7 +6,10 @@ import {
   useAllTransactions,
   useCategories,
 } from "@/hooks/useFinanceData";
-import { formatCentsToDollar } from "@/utils/money";
+import {
+  formatAccessibleMoney,
+  formatCentsToDollar,
+} from "@/utils/money";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -321,12 +324,26 @@ export function TransactionList() {
                   <td className="py-3 text-sm text-foreground">
                     {transaction.description}
                   </td>
-                  <td className="py-3 text-right font-mono tabular-nums text-sm text-foreground pr-4">
+                  <td
+                    className="py-3 text-right font-mono tabular-nums text-sm text-foreground pr-4"
+                    aria-label={formatAccessibleMoney(
+                      transaction.amountInCents,
+                    )}
+                  >
                     {formatCentsToDollar(transaction.amountInCents, {
                       alwaysShowSign: true,
                     })}
                   </td>
-                  <td className="py-3 text-right font-mono tabular-nums text-sm text-muted-foreground pr-4">
+                  <td
+                    className="py-3 text-right font-mono tabular-nums text-sm text-muted-foreground pr-4"
+                    aria-label={
+                      runningBalanceMap.has(transaction.id)
+                        ? formatAccessibleMoney(
+                            runningBalanceMap.get(transaction.id)!,
+                          )
+                        : undefined
+                    }
+                  >
                     {runningBalanceMap.has(transaction.id)
                       ? formatCentsToDollar(
                           runningBalanceMap.get(transaction.id)!,

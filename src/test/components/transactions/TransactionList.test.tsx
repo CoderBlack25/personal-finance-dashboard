@@ -176,6 +176,10 @@ describe("TransactionList", () => {
     const paycheckRow = screen.getByText("Paycheck").closest("tr")!;
     expect(within(paycheckRow).getByText("+$1,200.00")).toBeInTheDocument();
     expect(within(paycheckRow).getByText("+$1,157.50")).toBeInTheDocument();
+    expect(within(coffeeRow).getAllByRole("cell")[2]).toHaveAttribute(
+      "aria-label",
+      "Negative 42 dollars and 50 cents USD",
+    );
   });
 
   it("sorts by date descending regardless of insertion order", () => {

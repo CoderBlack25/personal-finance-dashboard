@@ -21,6 +21,23 @@ export function formatCentsToDollar(
   return `${sign}$${dollars.toLocaleString()}.${String(cents).padStart(2, "0")}`;
 }
 
+export function formatAccessibleMoney(amountInCents: number): string {
+  const { dollars, cents } = splitAbsoluteCents(Math.abs(amountInCents));
+  const dollarLabel = `${dollars.toLocaleString()} ${
+    dollars === 1 ? "dollar" : "dollars"
+  }`;
+  const centLabel = `${cents} ${cents === 1 ? "cent" : "cents"}`;
+  const amountLabel = `${dollarLabel} and ${centLabel} USD`;
+
+  if (amountInCents > 0) {
+    return `Positive ${amountLabel}`;
+  }
+  if (amountInCents < 0) {
+    return `Negative ${amountLabel}`;
+  }
+  return `Zero ${amountLabel}`;
+}
+
 export function computeBalance(
   transactions: { amountInCents: number }[],
 ): number {

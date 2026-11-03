@@ -74,6 +74,13 @@ describe("AccountBalance", () => {
     render(<AccountBalance />);
 
     expect(screen.getByText("$1,950.00")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Current balance: Positive 1,950/)).toHaveTextContent(
+      "$1,950.00",
+    );
+    expect(screen.getByText("$1,950.00").closest("output")).toHaveAttribute(
+      "aria-label",
+      "Current balance: Positive 1,950 dollars and 0 cents USD",
+    );
   });
 
   it("shows a zero balance when the selected account has no transactions", () => {

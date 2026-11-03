@@ -22,7 +22,10 @@ import {
   filterTransactionsForAccounts,
 } from "@/utils/derived";
 import { format } from "date-fns";
-import { formatCentsToDollar } from "@/utils/money";
+import {
+  formatAccessibleMoney,
+  formatCentsToDollar,
+} from "@/utils/money";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { PieChart } from "lucide-react";
@@ -307,35 +310,35 @@ export function MonthlySummary() {
           <h3 className="text-xs font-medium text-muted-foreground mb-1">
             Income
           </h3>
-          <p
+          <output
             className="font-mono tabular-nums text-lg text-success-foreground"
-            aria-label={incomeLabel}
+            aria-label={formatAccessibleMoney(summary.income)}
           >
             {incomeLabel}
-          </p>
+          </output>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="text-xs font-medium text-muted-foreground mb-1">
             Spending
           </h3>
-          <p
+          <output
             className="font-mono tabular-nums text-lg text-destructive"
-            aria-label={spendingLabel}
+            aria-label={formatAccessibleMoney(-summary.spending)}
             title="Total outflow this month"
           >
             {spendingLabel}
-          </p>
+          </output>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="text-xs font-medium text-muted-foreground mb-1">
             Net
           </h3>
-          <p
+          <output
             className={`font-mono tabular-nums text-lg ${summary.net >= 0 ? "text-success-foreground" : "text-destructive"}`}
-            aria-label={netLabel}
+            aria-label={formatAccessibleMoney(summary.net)}
           >
             {netLabel}
-          </p>
+          </output>
         </div>
       </div>
 
@@ -394,14 +397,25 @@ export function MonthlySummary() {
                   <td className="py-3 text-sm text-foreground">
                     {rollup.name}
                   </td>
-                  <td className="py-3 text-right font-mono tabular-nums text-sm">
+                  <td
+                    className="py-3 text-right font-mono tabular-nums text-sm"
+                    aria-label={formatAccessibleMoney(rollup.income)}
+                  >
                     {formatCentsToDollar(rollup.income)}
                   </td>
-                  <td className="py-3 text-right font-mono tabular-nums text-sm">
+                  <td
+                    className="py-3 text-right font-mono tabular-nums text-sm"
+                    aria-label={formatAccessibleMoney(-rollup.spending)}
+                  >
                     {formatCentsToDollar(rollup.spending)}
                   </td>
-                  <td className="py-3 text-right font-mono tabular-nums text-sm">
-                    {formatCentsToDollar(rollup.net, { alwaysShowSign: true })}
+                  <td
+                    className="py-3 text-right font-mono tabular-nums text-sm"
+                    aria-label={formatAccessibleMoney(rollup.net)}
+                  >
+                    {formatCentsToDollar(rollup.net, {
+                      alwaysShowSign: true,
+                    })}
                   </td>
                 </tr>
               ))}
@@ -409,13 +423,22 @@ export function MonthlySummary() {
                 <td className="py-3 text-sm text-foreground">
                   <strong>Total</strong>
                 </td>
-                <td className="py-3 text-right font-mono tabular-nums text-sm">
+                <td
+                  className="py-3 text-right font-mono tabular-nums text-sm"
+                  aria-label={formatAccessibleMoney(summary.income)}
+                >
                   {formatCentsToDollar(summary.income)}
                 </td>
-                <td className="py-3 text-right font-mono tabular-nums text-sm">
+                <td
+                  className="py-3 text-right font-mono tabular-nums text-sm"
+                  aria-label={formatAccessibleMoney(-summary.spending)}
+                >
                   {formatCentsToDollar(summary.spending)}
                 </td>
-                <td className="py-3 text-right font-mono tabular-nums text-sm">
+                <td
+                  className="py-3 text-right font-mono tabular-nums text-sm"
+                  aria-label={formatAccessibleMoney(summary.net)}
+                >
                   {netLabel}
                 </td>
               </tr>

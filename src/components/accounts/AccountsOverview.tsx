@@ -4,7 +4,7 @@ import {
   computeTotalBalance,
   filterTransactionsForAccounts,
 } from "@/utils/derived";
-import { formatCentsToDollar } from "@/utils/money";
+import { formatAccessibleMoney, formatCentsToDollar } from "@/utils/money";
 import { Badge } from "@/components/ui/badge";
 
 export function AccountsOverview() {
@@ -91,7 +91,10 @@ export function AccountsOverview() {
                     {balance.type}
                   </Badge>
                 </td>
-                <td className="py-3 text-right font-mono tabular-nums text-foreground">
+                <td
+                  className="py-3 text-right font-mono tabular-nums text-foreground"
+                  aria-label={formatAccessibleMoney(balance.balance)}
+                >
                   {formatCentsToDollar(balance.balance, {
                     alwaysShowSign: true,
                   })}
@@ -104,9 +107,12 @@ export function AccountsOverview() {
 
       <p className="mt-4 text-sm font-medium text-foreground">
         <strong>Total across all accounts:</strong>{" "}
-        <span className="font-mono tabular-nums">
+        <output
+          className="font-mono tabular-nums"
+          aria-label={formatAccessibleMoney(total)}
+        >
           {formatCentsToDollar(total, { alwaysShowSign: true })}
-        </span>
+        </output>
       </p>
     </section>
   );

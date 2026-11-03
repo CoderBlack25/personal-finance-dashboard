@@ -1,6 +1,10 @@
 import { useFinanceStore } from "@/store/store";
 import { useAllTransactions } from "@/hooks/useFinanceData";
-import { computeBalance, formatCentsToDollar } from "@/utils/money";
+import {
+  computeBalance,
+  formatAccessibleMoney,
+  formatCentsToDollar,
+} from "@/utils/money";
 import { isPostedTransaction } from "@/services/db";
 
 export function AccountBalance() {
@@ -30,11 +34,12 @@ export function AccountBalance() {
   return (
     <p className="text-lg font-medium font-mono tabular-nums text-foreground">
       Current balance:{" "}
-      <span
+      <output
         className={isPositive ? "text-success-foreground" : "text-destructive"}
+        aria-label={`Current balance: ${formatAccessibleMoney(balance)}`}
       >
         {formatCentsToDollar(balance)}
-      </span>
+      </output>
     </p>
   );
 }
