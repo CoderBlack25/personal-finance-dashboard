@@ -1,9 +1,9 @@
-import { openDB, type DBSchema, type IDBPDatabase } from "idb";
+import { openDB, type DBSchema, type IDBPDatabase, unwrap } from "idb";
 import type { Account, Category, Transaction } from "@/types/types";
 import { HEX_COLOR_REGEX } from "@/schemas/categorySchema";
 
 const DB_NAME = "finance-dashboard";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: "cat-income", name: "Income", color: "#14b8a6" },
@@ -56,11 +56,17 @@ function getDB(): Promise<IDBPDatabase<FinanceDB>> {
           }
         }
 
-        if (oldVersion < 4) {
-          const txStore = transaction.objectStore("transactions");
-          void txStore.openCursor().then(async (initialCursor) => {
-            let cursor = initialCursor;
-            while (cursor) {
+        if (oldVersion < 5) {
+          const transactionStore = unwrap(
+            transaction.objectStore("transactions"),
+          );
+          if (transactionStore.indexNames.contains("by-batch")) {
+            transactionStore.deleteIndex("by-batch");
+          }
+          const cursorRequest = transactionStore.openCursor();
+          cursorRequest.onsuccess = () => {
+            const cursor = cursorRequest.result;
+            if (!cursor) return;
             for (const field of [
               "status",
               "voidedAt",
@@ -70,10 +76,9 @@ function getDB(): Promise<IDBPDatabase<FinanceDB>> {
             ]) {
               Reflect.deleteProperty(cursor.value, field);
             }
-              await cursor.update(cursor.value);
-              cursor = await cursor.continue();
-            }
-          });
+            cursor.update(cursor.value);
+            cursor.continue();
+          };
         }
       },
     });
