@@ -12,7 +12,6 @@ import {
   putTransaction,
   updateAccount,
   deleteTransaction,
-  CategoryValidationError,
 } from "@/services/db";
 
 vi.mock("@/services/db", async (importOriginal) => {
@@ -157,14 +156,13 @@ describe("UI store", () => {
     vi.mocked(addCategory).mockResolvedValue({
       id: "category-1",
       name: "Food",
-      color: "#22c55e",
     });
 
     const store = useFinanceStore.getState();
     await store.createTransaction(transaction);
     await store.updateTransaction(transaction);
     await store.deleteTransaction(transaction.id);
-    await store.createCategory({ name: "Food", color: "#22c55e" });
+    await store.createCategory({ name: "Food" });
 
     expect(useFinanceStore.getState().dataRevision).toBe(4);
   });
@@ -231,15 +229,11 @@ describe("UI store", () => {
     expect(useFinanceStore.getState().dataRevision).toBe(2);
   });
 
-  it("preserves category validation errors", async () => {
-    vi.mocked(addCategory).mockRejectedValue(
-      new CategoryValidationError("Invalid color."),
-    );
+  it("reports category creation errors", async () => {
+    vi.mocked(addCategory).mockRejectedValue(new Error("storage failed"));
 
-    expect(
-      await useFinanceStore
-        .getState()
-        .createCategory({ name: "Food", color: "red" }),
-    ).toBe("Invalid color.");
+    expect(await useFinanceStore.getState().createCategory({ name: "Food" })).toBe(
+      "Could not create category.",
+    );
   });
 });

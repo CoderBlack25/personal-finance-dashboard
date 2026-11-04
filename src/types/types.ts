@@ -10,7 +10,6 @@ export type Account = {
 export type Category = {
   id: string;
   name: string;
-  color: string;
 };
 
 export type Transaction = {

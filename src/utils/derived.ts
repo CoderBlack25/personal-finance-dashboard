@@ -4,7 +4,6 @@ import { computeBalance } from "./money";
 export interface CategoryRollup {
   categoryId: string | null;
   name: string;
-  color: string;
   income: number; // cents
   spending: number; // cents (positive magnitude)
   net: number; // cents
@@ -53,7 +52,6 @@ export function computeCategoryRollups(
     const rollup: CategoryRollup = {
       categoryId,
       name: category?.name ?? "Uncategorized",
-      color: category?.color ?? "#94a3b8",
       income: 0,
       spending: 0,
       net: 0,

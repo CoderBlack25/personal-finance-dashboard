@@ -1,18 +1,17 @@
 import { openDB, type DBSchema, type IDBPDatabase, unwrap } from "idb";
 import type { Account, Category, Transaction } from "@/types/types";
-import { HEX_COLOR_REGEX } from "@/schemas/categorySchema";
 
 const DB_NAME = "finance-dashboard";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: "cat-income", name: "Income", color: "#14b8a6" },
-  { id: "cat-groceries", name: "Groceries", color: "#22c55e" },
-  { id: "cat-dining", name: "Dining", color: "#f97316" },
-  { id: "cat-transport", name: "Transport", color: "#3b82f6" },
-  { id: "cat-housing", name: "Housing", color: "#8b5cf6" },
-  { id: "cat-entertainment", name: "Entertainment", color: "#ec4899" },
-  { id: "cat-other", name: "Other", color: "#94a3b8" },
+  { id: "cat-income", name: "Income" },
+  { id: "cat-groceries", name: "Groceries" },
+  { id: "cat-dining", name: "Dining" },
+  { id: "cat-transport", name: "Transport" },
+  { id: "cat-housing", name: "Housing" },
+  { id: "cat-entertainment", name: "Entertainment" },
+  { id: "cat-other", name: "Other" },
 ];
 
 interface FinanceDB extends DBSchema {
@@ -76,6 +75,18 @@ function getDB(): Promise<IDBPDatabase<FinanceDB>> {
             ]) {
               Reflect.deleteProperty(cursor.value, field);
             }
+            cursor.update(cursor.value);
+            cursor.continue();
+          };
+        }
+
+        if (oldVersion < 6) {
+          const categoryStore = unwrap(transaction.objectStore("categories"));
+          const cursorRequest = categoryStore.openCursor();
+          cursorRequest.onsuccess = () => {
+            const cursor = cursorRequest.result;
+            if (!cursor) return;
+            Reflect.deleteProperty(cursor.value, "color");
             cursor.update(cursor.value);
             cursor.continue();
           };
@@ -222,19 +233,9 @@ export async function getCategories(): Promise<Category[]> {
   return db.getAll("categories");
 }
 
-export class CategoryValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "CategoryValidationError";
-  }
-}
-
 export async function addCategory(
   input: Omit<Category, "id">,
 ): Promise<Category> {
-  if (!HEX_COLOR_REGEX.test(input.color)) {
-    throw new CategoryValidationError("Pick a valid color.");
-  }
   const db = await getDB();
   const category: Category = { ...input, id: crypto.randomUUID() };
   await db.add("categories", category);

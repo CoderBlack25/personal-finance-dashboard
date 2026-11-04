@@ -45,8 +45,8 @@ describe("CategoryManager", () => {
   it("lists existing categories", () => {
     mockState({
       categories: [
-        { id: "cat-1", name: "Groceries", color: "#22c55e" },
-        { id: "cat-2", name: "Coffee", color: "#f97316" },
+        { id: "cat-1", name: "Groceries" },
+        { id: "cat-2", name: "Coffee" },
       ],
     });
 
@@ -73,7 +73,7 @@ describe("CategoryManager", () => {
     expect(mockCreateCategory).not.toHaveBeenCalled();
   });
 
-  it("creates a category with the entered name and default color", async () => {
+  it("creates a category with the entered name", async () => {
     const user = userEvent.setup();
     render(<CategoryManager />);
 
@@ -81,26 +81,7 @@ describe("CategoryManager", () => {
     await user.click(screen.getByRole("button", { name: /add category/i }));
 
     await waitFor(() =>
-      expect(mockCreateCategory).toHaveBeenCalledWith({
-        name: "Coffee",
-        color: "#14b8a6",
-      }),
-    );
-  });
-
-  it("creates a category with a chosen color", async () => {
-    const user = userEvent.setup();
-    render(<CategoryManager />);
-
-    await user.type(screen.getByLabelText(/category name/i), "Travel");
-    await user.click(screen.getByLabelText("Use color #3b82f6"));
-    await user.click(screen.getByRole("button", { name: /add category/i }));
-
-    await waitFor(() =>
-      expect(mockCreateCategory).toHaveBeenCalledWith({
-        name: "Travel",
-        color: "#3b82f6",
-      }),
+      expect(mockCreateCategory).toHaveBeenCalledWith({ name: "Coffee" }),
     );
   });
 
@@ -118,7 +99,7 @@ describe("CategoryManager", () => {
   it("blocks a duplicate category name regardless of case", async () => {
     const user = userEvent.setup();
     mockState({
-      categories: [{ id: "cat-1", name: "Groceries", color: "#22c55e" }],
+      categories: [{ id: "cat-1", name: "Groceries" }],
     });
     render(<CategoryManager />);
 

@@ -22,7 +22,6 @@ const account = (overrides: Partial<Account> = {}): Account => ({
 const category = (overrides: Partial<Category> = {}): Category => ({
   id: "cat-1",
   name: "Groceries",
-  color: "#22c55e",
   ...overrides,
 });
 
@@ -53,7 +52,7 @@ describe("computeCategoryRollups", () => {
     ];
     const categories: Category[] = [
       category({ id: "cat-1", name: "Groceries" }),
-      category({ id: "cat-2", name: "Income", color: "#14b8a6" }),
+      category({ id: "cat-2", name: "Income" }),
     ];
 
     const rollups = computeCategoryRollups(transactions, categories);
@@ -62,7 +61,6 @@ describe("computeCategoryRollups", () => {
       {
         categoryId: "cat-2",
         name: "Income",
-        color: "#14b8a6",
         income: 120000,
         spending: 0,
         net: 120000,
@@ -70,7 +68,6 @@ describe("computeCategoryRollups", () => {
       {
         categoryId: "cat-1",
         name: "Groceries",
-        color: "#22c55e",
         income: 0,
         spending: 8000,
         net: -8000,
@@ -89,7 +86,6 @@ describe("computeCategoryRollups", () => {
       {
         categoryId: null,
         name: "Uncategorized",
-        color: "#94a3b8",
         income: 0,
         spending: 1000,
         net: -1000,

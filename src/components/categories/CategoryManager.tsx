@@ -12,18 +12,6 @@ import {
 } from "@/schemas/categorySchema";
 import { isDuplicateCategoryName } from "@/utils/derived";
 
-const PRESET_COLORS = [
-  "#14b8a6",
-  "#22c55e",
-  "#f97316",
-  "#3b82f6",
-  "#8b5cf6",
-  "#ec4899",
-  "#f59e0b",
-  "#ef4444",
-  "#94a3b8",
-] as const;
-
 export function CategoryManager() {
   const { data: categories, error: categoriesError } = useCategories();
   const createCategory = useFinanceStore((state) => state.createCategory);
@@ -33,15 +21,13 @@ export function CategoryManager() {
     register,
     handleSubmit,
     reset,
-    setValue,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<CategoryFormValues>({
     resolver: zodResolver(categoryFormSchema),
-    defaultValues: { name: "", color: PRESET_COLORS[0] },
+    defaultValues: { name: "" },
   });
 
-  const selectedColor = watch("color");
   const nameValue = watch("name");
   const duplicateName =
     nameValue.trim().length > 0 &&
@@ -54,17 +40,14 @@ export function CategoryManager() {
     }
 
     setSubmitError(null);
-    const failure = await createCategory({
-      name: values.name.trim(),
-      color: values.color,
-    });
+    const failure = await createCategory({ name: values.name.trim() });
 
     if (failure) {
       setSubmitError(failure);
       return;
     }
 
-    reset({ name: "", color: PRESET_COLORS[0] });
+    reset({ name: "" });
   };
 
   return (
@@ -85,17 +68,8 @@ export function CategoryManager() {
             {categories.map((category) => (
               <li
                 key={category.id}
-                className="flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium"
-                style={{
-                  backgroundColor: `${category.color}20`,
-                  color: category.color,
-                }}
+                className="rounded-full border border-border bg-muted px-3 py-1 text-sm font-medium text-foreground"
               >
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: category.color }}
-                  aria-hidden="true"
-                />
                 {category.name}
               </li>
             ))}
@@ -152,36 +126,6 @@ export function CategoryManager() {
               </p>
             )}
           </div>
-
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-foreground mb-1">
-              Color
-            </legend>
-            <div className="flex flex-wrap items-center gap-2">
-              {PRESET_COLORS.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => setValue("color", color)}
-                  aria-label={`Use color ${color}`}
-                  aria-pressed={selectedColor === color}
-                  className={`w-8 h-8 rounded-full border-2 transition-transform ${
-                    selectedColor === color
-                      ? "border-foreground scale-110"
-                      : "border-transparent hover:scale-105"
-                  }`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
-              <input
-                type="color"
-                aria-label="Custom color"
-                value={selectedColor}
-                onChange={(event) => setValue("color", event.target.value)}
-                className="w-8 h-8 p-0 border border-border rounded-full bg-transparent cursor-pointer"
-              />
-            </div>
-          </fieldset>
 
           {submitError && (
             <p role="alert" className="text-sm text-destructive">

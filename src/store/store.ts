@@ -11,7 +11,6 @@ import {
   updateAccount as updateAccountRecord,
   deleteAccount as deleteAccountRecord,
   countTransactionsForAccount,
-  CategoryValidationError,
   deleteTransaction as deleteTransactionRecord,
 } from "../services/db";
 
@@ -312,10 +311,7 @@ export const useFinanceStore = create<FinanceStore>()(
           }));
           return null;
         } catch (cause) {
-          const message =
-            cause instanceof CategoryValidationError
-              ? cause.message
-              : "Could not create category.";
+          const message = "Could not create category.";
           set({ error: message, isLoading: false });
           return message;
         }
