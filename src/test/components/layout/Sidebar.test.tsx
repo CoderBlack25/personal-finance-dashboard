@@ -72,7 +72,13 @@ describe("Sidebar", () => {
   });
 
   it("renders a navigation item for every view", () => {
-    render(<Sidebar activeView="dashboard" onViewChange={vi.fn()} />);
+    render(
+      <Sidebar
+        activeView="dashboard"
+        onViewChange={vi.fn()}
+        onAddAccount={vi.fn()}
+      />,
+    );
 
     expect(
       screen.getByRole("button", { name: "Dashboard" }),
@@ -91,11 +97,33 @@ describe("Sidebar", () => {
   it("changes the view when a navigation item is clicked", async () => {
     const user = userEvent.setup();
     const onViewChange = vi.fn();
-    render(<Sidebar activeView="dashboard" onViewChange={onViewChange} />);
+    render(
+      <Sidebar
+        activeView="dashboard"
+        onViewChange={onViewChange}
+        onAddAccount={vi.fn()}
+      />,
+    );
 
     await user.click(screen.getByRole("button", { name: "Categories" }));
 
     expect(onViewChange).toHaveBeenCalledWith("categories");
+  });
+
+  it("invokes the add-account action when requested", async () => {
+    const user = userEvent.setup();
+    const onAddAccount = vi.fn();
+    render(
+      <Sidebar
+        activeView="dashboard"
+        onViewChange={vi.fn()}
+        onAddAccount={onAddAccount}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Add account" }));
+
+    expect(onAddAccount).toHaveBeenCalledOnce();
   });
 
   it("lists accounts and selects the one that is clicked", async () => {
@@ -107,7 +135,13 @@ describe("Sidebar", () => {
       ],
     });
 
-    render(<Sidebar activeView="dashboard" onViewChange={vi.fn()} />);
+    render(
+      <Sidebar
+        activeView="dashboard"
+        onViewChange={vi.fn()}
+        onAddAccount={vi.fn()}
+      />,
+    );
 
     await user.click(screen.getByRole("button", { name: /^Savings/ }));
 
@@ -124,7 +158,13 @@ describe("Sidebar", () => {
       ],
     });
 
-    render(<Sidebar activeView="dashboard" onViewChange={vi.fn()} />);
+    render(
+      <Sidebar
+        activeView="dashboard"
+        onViewChange={vi.fn()}
+        onAddAccount={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText("Archived (1)")).toBeInTheDocument();
     expect(screen.getByText("Old Card")).toBeInTheDocument();
@@ -137,7 +177,13 @@ describe("Sidebar", () => {
       ],
     });
 
-    render(<Sidebar activeView="dashboard" onViewChange={vi.fn()} />);
+    render(
+      <Sidebar
+        activeView="dashboard"
+        onViewChange={vi.fn()}
+        onAddAccount={vi.fn()}
+      />,
+    );
 
     expect(screen.queryByText(/^Archived/)).toBeNull();
   });
@@ -150,7 +196,13 @@ describe("Sidebar", () => {
       ],
     });
 
-    render(<Sidebar activeView="dashboard" onViewChange={vi.fn()} />);
+    render(
+      <Sidebar
+        activeView="dashboard"
+        onViewChange={vi.fn()}
+        onAddAccount={vi.fn()}
+      />,
+    );
 
     await user.click(
       screen.getByRole("button", { name: "Account actions for Checking" }),
@@ -168,7 +220,13 @@ describe("Sidebar", () => {
       ],
     });
 
-    render(<Sidebar activeView="dashboard" onViewChange={vi.fn()} />);
+    render(
+      <Sidebar
+        activeView="dashboard"
+        onViewChange={vi.fn()}
+        onAddAccount={vi.fn()}
+      />,
+    );
 
     await user.click(
       screen.getByRole("button", { name: "Account actions for Checking" }),
@@ -186,7 +244,13 @@ describe("Sidebar", () => {
       ],
     });
 
-    render(<Sidebar activeView="dashboard" onViewChange={vi.fn()} />);
+    render(
+      <Sidebar
+        activeView="dashboard"
+        onViewChange={vi.fn()}
+        onAddAccount={vi.fn()}
+      />,
+    );
 
     await user.click(
       screen.getByRole("button", { name: "Account actions for Old Card" }),
@@ -214,7 +278,13 @@ describe("Sidebar", () => {
       ],
     });
 
-    render(<Sidebar activeView="dashboard" onViewChange={vi.fn()} />);
+    render(
+      <Sidebar
+        activeView="dashboard"
+        onViewChange={vi.fn()}
+        onAddAccount={vi.fn()}
+      />,
+    );
 
     await user.click(
       screen.getByRole("button", { name: "Account actions for Checking" }),

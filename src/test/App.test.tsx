@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import App from "@/App";
 import { useFinanceStore } from "@/store/store";
@@ -74,13 +75,6 @@ describe("App", () => {
     );
   }
 
-  async function switchToTransactions() {
-    await screen.findByRole("button", { name: /transactions/i }).then((btn) => {
-      // eslint-disable-next-line @testing-library/dom-events/no-mouse-events
-      btn.click();
-    });
-  }
-
   it("shows a loading state before loadAccounts resolves", () => {
     mockLoadAccounts.mockReturnValue(new Promise(() => {}));
     mockState({});
@@ -91,18 +85,20 @@ describe("App", () => {
     expect(screen.queryByText("AccountForm stub")).not.toBeInTheDocument();
   });
 
-  it("shows the page content once loadAccounts resolves", async () => {
+  it("shows transaction entry without the account setup form after setup", async () => {
     mockLoadAccounts.mockResolvedValue(undefined);
-    mockState({});
+    mockState({
+      accounts: [{ id: "acc_1", name: "Checking", type: "checking" }],
+      selectedAccountId: "acc_1",
+    });
 
     render(<App />);
 
-    await switchToTransactions();
-    expect(await screen.findByText("AccountForm stub")).toBeInTheDocument();
-    expect(screen.getByText("TransactionForm stub")).toBeInTheDocument();
+    expect(await screen.findByText("TransactionForm stub")).toBeInTheDocument();
+    expect(screen.queryByText("AccountForm stub")).not.toBeInTheDocument();
   });
 
-  it("shows the selected account's name once one exists", async () => {
+  it("shows the selected account name in the transaction workflow", async () => {
     mockLoadAccounts.mockResolvedValue(undefined);
     mockState({
       accounts: [{ id: "acc_1", name: "Chase Checking", type: "checking" }],
@@ -111,8 +107,6 @@ describe("App", () => {
 
     render(<App />);
 
-    await switchToTransactions();
-
     expect(
       await screen.findByText(
         /currently adding transactions to: chase checking/i,
@@ -120,26 +114,50 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
-  it("says no account is selected when the list is empty", async () => {
+  it("opens account creation from the sidebar after setup", async () => {
+    mockLoadAccounts.mockResolvedValue(undefined);
+    mockState({
+      accounts: [{ id: "acc_1", name: "Checking", type: "checking" }],
+      selectedAccountId: "acc_1",
+    });
+
+    render(<App />);
+
+    await screen.findByText("TransactionForm stub");
+    await userEvent.setup().click(
+      screen.getByRole("button", { name: "Add account" }),
+    );
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("AccountForm stub")).toBeInTheDocument();
+  });
+
+  it("guides a first-time user to create their first account", async () => {
     mockLoadAccounts.mockResolvedValue(undefined);
     mockState({});
 
     render(<App />);
 
-    await switchToTransactions();
-
     expect(
-      await screen.findByText(/no account selected yet/i),
+      await screen.findByRole("heading", {
+        name: /let’s set up your finances/i,
+      }),
     ).toBeInTheDocument();
+    expect(screen.getByText("AccountForm stub")).toBeInTheDocument();
+    expect(screen.queryByText("TransactionForm stub")).not.toBeInTheDocument();
   });
 
-  it("still shows the page content instead of loading forever, even if loadAccounts unexpectedly rejects", async () => {
+  it("shows an error if loading accounts unexpectedly rejects", async () => {
     mockLoadAccounts.mockRejectedValue(new Error("boom"));
-    mockState({});
+    mockState({
+      accounts: [{ id: "acc_1", name: "Checking", type: "checking" }],
+      selectedAccountId: "acc_1",
+    });
 
     render(<App />);
 
-    await switchToTransactions();
-    expect(await screen.findByText("AccountForm stub")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /could not load your accounts/i,
+    );
   });
 });

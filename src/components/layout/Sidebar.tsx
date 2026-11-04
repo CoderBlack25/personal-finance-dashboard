@@ -26,9 +26,14 @@ const VIEWS = Object.keys(NAV_ITEMS) as View[];
 interface SidebarProps {
   activeView: View;
   onViewChange: (view: View) => void;
+  onAddAccount: () => void;
 }
 
-export function Sidebar({ activeView, onViewChange }: SidebarProps) {
+export function Sidebar({
+  activeView,
+  onViewChange,
+  onAddAccount,
+}: SidebarProps) {
   const { data: accountData, error: accountError } = useAccounts();
   const { data: allTransactions, error: transactionError } =
     useAllTransactions();
@@ -150,7 +155,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
             variant="outline"
             size="sm"
             className="w-full"
-            onClick={() => onViewChange("transactions")}
+            onClick={onAddAccount}
           >
             <Plus className="w-3 h-3 mr-2 shrink-0" />
             Add account

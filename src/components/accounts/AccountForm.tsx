@@ -14,9 +14,13 @@ import { X } from "lucide-react";
 
 interface AccountFormProps {
   onClose?: () => void;
+  showHeading?: boolean;
 }
 
-export function AccountForm({ onClose }: AccountFormProps) {
+export function AccountForm({
+  onClose,
+  showHeading = true,
+}: AccountFormProps) {
   const createAccount = useFinanceStore((state) => state.createAccount);
   const storeError = useFinanceStore((state) => state.error);
 
@@ -45,20 +49,24 @@ export function AccountForm({ onClose }: AccountFormProps) {
       onSubmit={handleSubmit(onSubmit)}
       noValidate
     >
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-lg font-semibold">Add account</h2>
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={() => {
-            reset();
-            onClose?.();
-          }}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+      {showHeading && (
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold">Add account</h2>
+          {onClose && (
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => {
+                reset();
+                onClose();
+              }}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="space-y-4">
         <div className="space-y-1">
@@ -114,16 +122,18 @@ export function AccountForm({ onClose }: AccountFormProps) {
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Adding..." : "Add account"}
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              reset();
-              onClose?.();
-            }}
-          >
-            Cancel
-          </Button>
+          {onClose && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                reset();
+                onClose();
+              }}
+            >
+              Cancel
+            </Button>
+          )}
         </div>
       </div>
     </form>
