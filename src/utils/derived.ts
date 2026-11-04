@@ -9,28 +9,20 @@ export interface CategoryRollup {
   net: number; // cents
 }
 
-interface TransactionPeriod {
-  dateFrom?: string;
-  dateTo?: string;
+interface MonthPeriod {
   year?: number;
   month?: number;
 }
 
 function transactionsInPeriod(
   transactions: Transaction[],
-  { dateFrom, dateTo, year, month }: TransactionPeriod,
+  { year, month }: MonthPeriod,
 ): Transaction[] {
   const visible = transactions;
   const monthKey = year && month ? `${year}-${String(month).padStart(2, "0")}` : null;
 
   return visible.filter((transaction) => {
-    if (monthKey && !dateFrom && !dateTo && !transaction.date.startsWith(monthKey)) {
-      return false;
-    }
-    if (dateFrom && transaction.date < dateFrom) {
-      return false;
-    }
-    if (dateTo && transaction.date > dateTo) {
+    if (monthKey && !transaction.date.startsWith(monthKey)) {
       return false;
     }
     return true;
@@ -40,7 +32,7 @@ function transactionsInPeriod(
 export function computeCategoryRollups(
   transactions: Transaction[] = [],
   categories: Category[] = [],
-  options: TransactionPeriod = {},
+  options: MonthPeriod = {},
 ): CategoryRollup[] {
   const rollups = new Map<string | null, CategoryRollup>();
   const visible = transactionsInPeriod(transactions, options);
@@ -83,12 +75,10 @@ export function computeMonthlySummary(
   transactions: Transaction[] = [],
   year: number,
   month: number, // 1-12
-  options: Pick<TransactionPeriod, "dateFrom" | "dateTo"> = {},
 ): MonthlySummary {
   const visible = transactionsInPeriod(transactions, {
     year,
     month,
-    ...options,
   });
   const income = visible
     .filter((t) => t.amountInCents > 0)

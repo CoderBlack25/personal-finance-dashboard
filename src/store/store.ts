@@ -31,8 +31,6 @@ interface FinanceStore {
     categoryId: string | null;
   };
   summaryFilters: {
-    dateFrom: string;
-    dateTo: string;
     year: number;
     month: number;
   };
@@ -81,8 +79,6 @@ export const useFinanceStore = create<FinanceStore>()(
         categoryId: null,
       },
       summaryFilters: {
-        dateFrom: "",
-        dateTo: "",
         year: new Date().getFullYear(),
         month: new Date().getMonth() + 1,
       },

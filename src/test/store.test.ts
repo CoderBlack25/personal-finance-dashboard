@@ -63,8 +63,6 @@ describe("UI store", () => {
         categoryId: null,
       },
       summaryFilters: {
-        dateFrom: "",
-        dateTo: "",
         year: new Date().getFullYear(),
         month: new Date().getMonth() + 1,
       },
@@ -121,16 +119,12 @@ describe("UI store", () => {
     });
   });
 
-  it("stores summary date-range filters", () => {
+  it("stores summary month and year filters", () => {
     useFinanceStore.getState().updateSummaryFilters({
-      dateFrom: "2026-08-01",
-      dateTo: "2026-08-31",
       year: 2026,
       month: 8,
     });
     expect(useFinanceStore.getState().summaryFilters).toEqual({
-      dateFrom: "2026-08-01",
-      dateTo: "2026-08-31",
       year: 2026,
       month: 8,
     });

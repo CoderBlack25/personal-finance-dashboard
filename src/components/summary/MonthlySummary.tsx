@@ -51,7 +51,7 @@ export function MonthlySummary() {
     (state) => state.updateSummaryFilters,
   );
   const now = new Date();
-  const { year, month, dateFrom, dateTo } = summaryFilters;
+  const { year, month } = summaryFilters;
   const [showTable, setShowTable] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -59,15 +59,10 @@ export function MonthlySummary() {
 
   const transactions = filterTransactionsForAccounts(allTransactions, accounts);
   const rollups = computeCategoryRollups(transactions, categories, {
-    dateFrom,
-    dateTo,
     year,
     month,
   });
-  const summary = computeMonthlySummary(transactions, year, month, {
-    dateFrom,
-    dateTo,
-  });
+  const summary = computeMonthlySummary(transactions, year, month);
   const monthLabel = format(new Date(year, month - 1), "MMMM yyyy");
 
   const incomeLabel = formatCentsToDollar(summary.income, {
@@ -123,10 +118,7 @@ export function MonthlySummary() {
         plugins: {
           title: {
             display: true,
-            text:
-              dateFrom || dateTo
-                ? `Income & Spending by category`
-                : `Income & Spending by category — ${monthLabel}`,
+            text: `Income & Spending by category — ${monthLabel}`,
             color: "var(--foreground)",
             font: {
               size: 13,
@@ -199,8 +191,6 @@ export function MonthlySummary() {
     categories,
     rollups,
     monthLabel,
-    dateFrom,
-    dateTo,
   ]);
 
   return (
@@ -251,43 +241,6 @@ export function MonthlySummary() {
               updateSummaryFilters({ year: Number(event.target.value) })
             }
             className="w-32"
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-        <div className="flex-1 min-w-0">
-          <label
-            htmlFor="summary-date-from"
-            className="block text-xs font-medium text-muted-foreground mb-1"
-          >
-            From
-          </label>
-          <Input
-            id="summary-date-from"
-            type="date"
-            value={dateFrom}
-            onChange={(event) =>
-              updateSummaryFilters({ dateFrom: event.target.value })
-            }
-            className="w-full"
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <label
-            htmlFor="summary-date-to"
-            className="block text-xs font-medium text-muted-foreground mb-1"
-          >
-            To
-          </label>
-          <Input
-            id="summary-date-to"
-            type="date"
-            value={dateTo}
-            onChange={(event) =>
-              updateSummaryFilters({ dateTo: event.target.value })
-            }
-            className="w-full"
           />
         </div>
       </div>
