@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { EditTransactionForm } from "@/components/transactions/EditTransactionForm";
 import { useFinanceStore } from "@/store/store";
 import {
@@ -29,6 +30,10 @@ import {
 } from "@/utils/derived";
 
 const ALL_ACCOUNTS = "";
+const VIRTUALIZATION_THRESHOLD = 300;
+const VIRTUALIZATION_OVERSCAN = 8;
+const VIRTUALIZED_LIST_HEIGHT = 600;
+const ESTIMATED_ROW_HEIGHT = 56;
 
 export function TransactionList() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
@@ -51,6 +56,7 @@ export function TransactionList() {
   const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const transactionListRef = useRef<HTMLDivElement>(null);
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const {
@@ -114,6 +120,71 @@ export function TransactionList() {
   const sortedByDateDescending = [...filtered].sort((a, b) =>
     compareTransactionChronologically(b, a),
   );
+  const isVirtualized =
+    sortedByDateDescending.length > VIRTUALIZATION_THRESHOLD;
+  const virtualizer = useVirtualizer({
+    count: isVirtualized ? sortedByDateDescending.length : 0,
+    getScrollElement: () => transactionListRef.current,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT,
+    getItemKey: (index) => sortedByDateDescending[index].id,
+    overscan: VIRTUALIZATION_OVERSCAN,
+    initialRect: { width: 800, height: VIRTUALIZED_LIST_HEIGHT },
+  });
+  const virtualRows = virtualizer.getVirtualItems();
+  const fallbackStartIndex = Math.max(
+    0,
+    Math.floor(
+      (transactionListRef.current?.scrollTop ?? 0) / ESTIMATED_ROW_HEIGHT,
+    ) - VIRTUALIZATION_OVERSCAN,
+  );
+  const fallbackEndIndex = Math.min(
+    sortedByDateDescending.length,
+    Math.ceil(
+      ((transactionListRef.current?.scrollTop ?? 0) +
+        Math.max(
+          transactionListRef.current?.clientHeight ?? 0,
+          VIRTUALIZED_LIST_HEIGHT,
+        )) /
+        ESTIMATED_ROW_HEIGHT,
+    ) + VIRTUALIZATION_OVERSCAN,
+  );
+  const renderedRows = isVirtualized
+    ? virtualRows.length > 0
+      ? virtualRows
+      : Array.from(
+          { length: fallbackEndIndex - fallbackStartIndex },
+          (_, offset) => {
+            const index = fallbackStartIndex + offset;
+            return {
+              index,
+              key: sortedByDateDescending[index].id,
+              start: index * ESTIMATED_ROW_HEIGHT,
+              end: (index + 1) * ESTIMATED_ROW_HEIGHT,
+            };
+          },
+        )
+    : sortedByDateDescending.map((transaction, index) => ({
+        index,
+        key: transaction.id,
+        start: 0,
+        end: 0,
+      }));
+
+  useEffect(() => {
+    if (isVirtualized && transactionListRef.current) {
+      transactionListRef.current.scrollTop = 0;
+      virtualizer.measure();
+    }
+  }, [
+    accountFilterId,
+    allTransactions,
+    categoryId,
+    dateFrom,
+    dateTo,
+    debouncedSearch,
+    isVirtualized,
+    virtualizer,
+  ]);
 
   const handleDelete = async () => {
     if (!pendingDelete) return;
@@ -261,46 +332,72 @@ export function TransactionList() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div
+          ref={transactionListRef}
+          className={isVirtualized ? "overflow-auto" : "overflow-x-auto"}
+          style={isVirtualized ? { maxHeight: VIRTUALIZED_LIST_HEIGHT } : undefined}
+          aria-label={
+            isVirtualized
+              ? `Transactions list, ${sortedByDateDescending.length} transactions`
+              : undefined
+          }
+        >
           <table className="w-full text-sm">
           <thead>
             <tr>
               <th
                 scope="col"
-                className="text-left text-xs text-muted-foreground pb-3 font-medium"
+                className={`text-left text-xs text-muted-foreground pb-3 font-medium${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
               >
                 Date
               </th>
               <th
                 scope="col"
-                className="text-left text-xs text-muted-foreground pb-3 font-medium"
+                className={`text-left text-xs text-muted-foreground pb-3 font-medium${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
               >
                 Description
               </th>
               <th
                 scope="col"
-                className="text-right text-xs text-muted-foreground pb-3 font-medium pr-4"
+                className={`text-right text-xs text-muted-foreground pb-3 font-medium pr-4${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
               >
                 Amount
               </th>
               <th
                 scope="col"
-                className="text-right text-xs text-muted-foreground pb-3 font-medium pr-4"
+                className={`text-right text-xs text-muted-foreground pb-3 font-medium pr-4${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
               >
                 Running Balance
               </th>
               <th
                 scope="col"
-                className="text-right text-xs text-muted-foreground pb-3 font-medium w-24"
+                className={`text-right text-xs text-muted-foreground pb-3 font-medium w-24${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
               >
                 <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
           <tbody>
-            {sortedByDateDescending.map((transaction) =>
-              editingId === transaction.id ? (
-                <tr key={transaction.id}>
+            {isVirtualized && renderedRows.length > 0 && (
+              <tr aria-hidden="true">
+                <td
+                  colSpan={5}
+                  style={{
+                    height: renderedRows[0].start,
+                    padding: 0,
+                    border: 0,
+                  }}
+                />
+              </tr>
+            )}
+            {renderedRows.map((row) => {
+              const transaction = sortedByDateDescending[row.index];
+              return editingId === transaction.id ? (
+                <tr
+                  key={transaction.id}
+                  ref={isVirtualized ? virtualizer.measureElement : undefined}
+                  data-index={row.index}
+                >
                   <td colSpan={5} className="py-3">
                     <EditTransactionForm
                       transaction={transaction}
@@ -311,6 +408,8 @@ export function TransactionList() {
               ) : (
                 <tr
                   key={transaction.id}
+                  ref={isVirtualized ? virtualizer.measureElement : undefined}
+                  data-index={row.index}
                   className="border-t border-border hover:bg-accent/50 transition-colors"
                 >
                   <td className="py-3 text-sm text-foreground">
@@ -372,7 +471,21 @@ export function TransactionList() {
                     </div>
                   </td>
                 </tr>
-              ),
+              );
+            })}
+            {isVirtualized && renderedRows.length > 0 && (
+              <tr aria-hidden="true">
+                <td
+                  colSpan={5}
+                  style={{
+                    height:
+                      virtualizer.getTotalSize() -
+                      renderedRows[renderedRows.length - 1].end,
+                    padding: 0,
+                    border: 0,
+                  }}
+                />
+              </tr>
             )}
           </tbody>
           </table>

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { TransactionList } from "@/components/transactions/TransactionList";
@@ -84,6 +84,32 @@ describe("TransactionList", () => {
     mockState({ selectedAccountId: "acc_1", transactions: [] });
     render(<TransactionList />);
     expect(screen.getByText(/no transactions found/i)).toBeInTheDocument();
+  });
+
+  it("virtualizes large transaction lists and renders rows as you scroll", async () => {
+    const transactions = Array.from({ length: 301 }, (_, index) => ({
+      id: `tx-${String(index).padStart(3, "0")}`,
+      accountId: "acc_1",
+      categoryId: null,
+      amountInCents: -100,
+      date: "2026-08-01",
+      createdAt: new Date(Date.UTC(2026, 7, 1, 0, 0, index)).toISOString(),
+      description: `Transaction ${index}`,
+    }));
+    mockState({ selectedAccountId: "acc_1", transactions });
+
+    render(<TransactionList />);
+
+    const list = screen.getByLabelText("Transactions list, 301 transactions");
+    expect(list).toBeInTheDocument();
+    expect(screen.getByText("Transaction 300")).toBeInTheDocument();
+    expect(screen.queryByText("Transaction 0")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("row").length).toBeLessThan(40);
+
+    list.scrollTop = 16_000;
+    fireEvent.scroll(list);
+    expect(await screen.findByText("Transaction 0")).toBeInTheDocument();
+    expect(screen.queryByText("Transaction 300")).not.toBeInTheDocument();
   });
 
   it("deletes a transaction after confirmation", async () => {
