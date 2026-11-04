@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
@@ -75,6 +75,56 @@ describe("TransactionForm", () => {
     render(<TransactionForm />);
     expect(screen.getByRole("radio", { name: /expense/i })).toBeChecked();
     expect(screen.getByRole("radio", { name: /income/i })).not.toBeChecked();
+  });
+
+  it("supports keyboard navigation through the transaction form and submission", async () => {
+    const user = userEvent.setup();
+    vi.mocked(useCategories).mockReturnValue({
+      data: [
+        { id: "cat-groceries", name: "Groceries" },
+        { id: "cat-utilities", name: "Utilities" },
+      ],
+      isLoading: false,
+      error: null,
+    });
+    mockCreateTransaction.mockResolvedValue(undefined);
+    render(<TransactionForm />);
+
+    await user.tab();
+    expect(screen.getByRole("radio", { name: /expense/i })).toHaveFocus();
+
+    await user.tab();
+    expect(screen.getByLabelText("Amount")).toHaveFocus();
+    await user.keyboard("12.50");
+    await user.tab();
+    expect(screen.getByLabelText("Date")).toHaveFocus();
+    await user.tab();
+    expect(screen.getByLabelText("Description")).toHaveFocus();
+    await user.keyboard("Keyboard entry");
+    await user.tab();
+
+    const category = screen.getByLabelText("Category");
+    expect(category).toHaveFocus();
+    expect(category).toHaveRole("combobox");
+    expect(
+      within(category).getByRole("option", { name: "Groceries" }),
+    ).toBeInTheDocument();
+    await user.tab();
+    expect(
+      screen.getByRole("button", { name: "Add transaction" }),
+    ).toHaveFocus();
+    await user.keyboard("{Enter}");
+
+    await waitFor(() =>
+      expect(mockCreateTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accountId: "acc_1",
+          amountInCents: -1250,
+          description: "Keyboard entry",
+          categoryId: "",
+        }),
+      ),
+    );
   });
 
   it("rejects an amount with three decimal places", async () => {
