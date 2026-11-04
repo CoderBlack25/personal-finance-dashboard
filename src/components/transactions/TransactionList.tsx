@@ -7,10 +7,7 @@ import {
   useAllTransactions,
   useCategories,
 } from "@/hooks/useFinanceData";
-import {
-  formatAccessibleMoney,
-  formatCentsToDollar,
-} from "@/utils/money";
+import { formatAccessibleMoney, formatCentsToDollar } from "@/utils/money";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -335,7 +332,9 @@ export function TransactionList() {
         <div
           ref={transactionListRef}
           className={isVirtualized ? "overflow-auto" : "overflow-x-auto"}
-          style={isVirtualized ? { maxHeight: VIRTUALIZED_LIST_HEIGHT } : undefined}
+          style={
+            isVirtualized ? { maxHeight: VIRTUALIZED_LIST_HEIGHT } : undefined
+          }
           aria-label={
             isVirtualized
               ? `Transactions list, ${sortedByDateDescending.length} transactions`
@@ -343,151 +342,151 @@ export function TransactionList() {
           }
         >
           <table className="w-full text-sm">
-          <thead>
-            <tr>
-              <th
-                scope="col"
-                className={`text-left text-xs text-muted-foreground pb-3 font-medium${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
-              >
-                Date
-              </th>
-              <th
-                scope="col"
-                className={`text-left text-xs text-muted-foreground pb-3 font-medium${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
-              >
-                Description
-              </th>
-              <th
-                scope="col"
-                className={`text-right text-xs text-muted-foreground pb-3 font-medium pr-4${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
-              >
-                Amount
-              </th>
-              <th
-                scope="col"
-                className={`text-right text-xs text-muted-foreground pb-3 font-medium pr-4${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
-              >
-                Running Balance
-              </th>
-              <th
-                scope="col"
-                className={`text-right text-xs text-muted-foreground pb-3 font-medium w-24${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
-              >
-                <span className="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {isVirtualized && renderedRows.length > 0 && (
-              <tr aria-hidden="true">
-                <td
-                  colSpan={5}
-                  style={{
-                    height: renderedRows[0].start,
-                    padding: 0,
-                    border: 0,
-                  }}
-                />
+            <thead>
+              <tr>
+                <th
+                  scope="col"
+                  className={`text-left text-xs text-muted-foreground pb-3 font-medium${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
+                >
+                  Date
+                </th>
+                <th
+                  scope="col"
+                  className={`text-left text-xs text-muted-foreground pb-3 font-medium${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
+                >
+                  Description
+                </th>
+                <th
+                  scope="col"
+                  className={`text-right text-xs text-muted-foreground pb-3 font-medium pr-4${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
+                >
+                  Amount
+                </th>
+                <th
+                  scope="col"
+                  className={`text-right text-xs text-muted-foreground pb-3 font-medium pr-4${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
+                >
+                  Running Balance
+                </th>
+                <th
+                  scope="col"
+                  className={`text-right text-xs text-muted-foreground pb-3 font-medium w-24${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
+                >
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
-            )}
-            {renderedRows.map((row) => {
-              const transaction = sortedByDateDescending[row.index];
-              return editingId === transaction.id ? (
-                <tr
-                  key={transaction.id}
-                  ref={isVirtualized ? virtualizer.measureElement : undefined}
-                  data-index={row.index}
-                >
-                  <td colSpan={5} className="py-3">
-                    <EditTransactionForm
-                      transaction={transaction}
-                      onDone={() => setEditingId(null)}
-                    />
-                  </td>
+            </thead>
+            <tbody>
+              {isVirtualized && renderedRows.length > 0 && (
+                <tr aria-hidden="true">
+                  <td
+                    colSpan={5}
+                    style={{
+                      height: renderedRows[0].start,
+                      padding: 0,
+                      border: 0,
+                    }}
+                  />
                 </tr>
-              ) : (
-                <tr
-                  key={transaction.id}
-                  ref={isVirtualized ? virtualizer.measureElement : undefined}
-                  data-index={row.index}
-                  className="border-t border-border hover:bg-accent/50 transition-colors"
-                >
-                  <td className="py-3 text-sm text-foreground">
-                    {transaction.date}
-                  </td>
-                  <td className="py-3 text-sm text-foreground">
-                    {transaction.description}
-                  </td>
-                  <td
-                    className="py-3 text-right font-mono tabular-nums text-sm text-foreground pr-4"
-                    aria-label={formatAccessibleMoney(
-                      transaction.amountInCents,
-                    )}
+              )}
+              {renderedRows.map((row) => {
+                const transaction = sortedByDateDescending[row.index];
+                return editingId === transaction.id ? (
+                  <tr
+                    key={transaction.id}
+                    ref={isVirtualized ? virtualizer.measureElement : undefined}
+                    data-index={row.index}
                   >
-                    {formatCentsToDollar(transaction.amountInCents, {
-                      alwaysShowSign: true,
-                    })}
-                  </td>
-                  <td
-                    className="py-3 text-right font-mono tabular-nums text-sm text-muted-foreground pr-4"
-                    aria-label={
-                      runningBalanceMap.has(transaction.id)
-                        ? formatAccessibleMoney(
+                    <td colSpan={5} className="py-3">
+                      <EditTransactionForm
+                        transaction={transaction}
+                        onDone={() => setEditingId(null)}
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  <tr
+                    key={transaction.id}
+                    ref={isVirtualized ? virtualizer.measureElement : undefined}
+                    data-index={row.index}
+                    className="border-t border-border hover:bg-accent/50 transition-colors"
+                  >
+                    <td className="py-3 text-sm text-foreground">
+                      {transaction.date}
+                    </td>
+                    <td className="py-3 text-sm text-foreground">
+                      {transaction.description}
+                    </td>
+                    <td
+                      className="py-3 text-right font-mono tabular-nums text-sm text-foreground pr-4"
+                      aria-label={formatAccessibleMoney(
+                        transaction.amountInCents,
+                      )}
+                    >
+                      {formatCentsToDollar(transaction.amountInCents, {
+                        alwaysShowSign: true,
+                      })}
+                    </td>
+                    <td
+                      className="py-3 text-right font-mono tabular-nums text-sm text-muted-foreground pr-4"
+                      aria-label={
+                        runningBalanceMap.has(transaction.id)
+                          ? formatAccessibleMoney(
+                              runningBalanceMap.get(transaction.id)!,
+                            )
+                          : undefined
+                      }
+                    >
+                      {runningBalanceMap.has(transaction.id)
+                        ? formatCentsToDollar(
                             runningBalanceMap.get(transaction.id)!,
+                            { alwaysShowSign: true },
                           )
-                        : undefined
-                    }
-                  >
-                    {runningBalanceMap.has(transaction.id)
-                      ? formatCentsToDollar(
-                          runningBalanceMap.get(transaction.id)!,
-                          { alwaysShowSign: true },
-                        )
-                      : "—"}
-                  </td>
-                  <td className="py-2 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setEditingId(transaction.id)}
-                        aria-label={`Edit ${transaction.description}`}
-                        title="Edit transaction"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setDeleteError(null);
-                          setPendingDelete(transaction);
-                        }}
-                        aria-label={`Delete ${transaction.description}`}
-                        title="Delete transaction"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
+                        : "—"}
+                    </td>
+                    <td className="py-2 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(transaction.id)}
+                          aria-label={`Edit ${transaction.description}`}
+                          title="Edit transaction"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeleteError(null);
+                            setPendingDelete(transaction);
+                          }}
+                          aria-label={`Delete ${transaction.description}`}
+                          title="Delete transaction"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {isVirtualized && renderedRows.length > 0 && (
+                <tr aria-hidden="true">
+                  <td
+                    colSpan={5}
+                    style={{
+                      height:
+                        virtualizer.getTotalSize() -
+                        renderedRows[renderedRows.length - 1].end,
+                      padding: 0,
+                      border: 0,
+                    }}
+                  />
                 </tr>
-              );
-            })}
-            {isVirtualized && renderedRows.length > 0 && (
-              <tr aria-hidden="true">
-                <td
-                  colSpan={5}
-                  style={{
-                    height:
-                      virtualizer.getTotalSize() -
-                      renderedRows[renderedRows.length - 1].end,
-                    padding: 0,
-                    border: 0,
-                  }}
-                />
-              </tr>
-            )}
-          </tbody>
+              )}
+            </tbody>
           </table>
         </div>
       )}
@@ -505,10 +504,30 @@ export function TransactionList() {
           <DialogContent>
             <DialogTitle>Delete transaction?</DialogTitle>
             <DialogDescription>
-              This permanently deletes
-              {pendingDelete ? ` “${pendingDelete.description}”` : " this transaction"}.
-              This cannot be undone.
+              This permanently deletes this transaction. This cannot be undone.
             </DialogDescription>
+            {pendingDelete && (
+              <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                <dt className="text-muted-foreground">Description</dt>
+                <dd className="wrap-break-word font-medium text-foreground">
+                  {pendingDelete.description}
+                </dd>
+                <dt className="text-muted-foreground">Amount</dt>
+                <dd className="font-mono tabular-nums text-foreground">
+                  {formatCentsToDollar(pendingDelete.amountInCents, {
+                    alwaysShowSign: true,
+                  })}
+                </dd>
+                <dt className="text-muted-foreground">Date</dt>
+                <dd className="text-foreground">{pendingDelete.date}</dd>
+                <dt className="text-muted-foreground">Account</dt>
+                <dd className="text-foreground">
+                  {accounts.find(
+                    (account) => account.id === pendingDelete.accountId,
+                  )?.name ?? "Unknown account"}
+                </dd>
+              </dl>
+            )}
             {deleteError && (
               <p role="alert" className="mt-2 text-sm text-destructive">
                 {deleteError}

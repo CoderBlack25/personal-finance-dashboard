@@ -133,7 +133,15 @@ describe("TransactionList", () => {
     await user.click(
       within(transactionRow).getByRole("button", { name: /delete coffee/i }),
     );
-    expect(screen.getByText(/permanently deletes/i)).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/permanently deletes/i)).toBeInTheDocument();
+    expect(within(dialog).getByText("Description")).toBeInTheDocument();
+    expect(within(dialog).getByText("Amount")).toBeInTheDocument();
+    expect(within(dialog).getByText("-$5.00")).toBeInTheDocument();
+    expect(within(dialog).getByText("Date")).toBeInTheDocument();
+    expect(within(dialog).getByText("2026-08-01")).toBeInTheDocument();
+    expect(within(dialog).getByText("Account")).toBeInTheDocument();
+    expect(within(dialog).getByText("Checking")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Delete" }));
     expect(useFinanceStore.getState().deleteTransaction).toHaveBeenCalledWith(

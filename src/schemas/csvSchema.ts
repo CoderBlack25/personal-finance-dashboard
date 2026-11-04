@@ -4,7 +4,12 @@ import { dollarsStringToCents } from "@/utils/money";
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 const csvRowSchema = z.object({
-  date: z.string().regex(DATE_REGEX, "Date must be in YYYY-MM-DD format."),
+  date: z
+    .string()
+    .refine(
+      isValidDate,
+      "Date must be a valid calendar date in YYYY-MM-DD format.",
+    ),
   amount: z
     .string()
     .trim()
@@ -76,9 +81,33 @@ export function parseCsvAmount(amount: string): number {
 }
 
 export function isValidDate(dateString: string): boolean {
-  if (!DATE_REGEX.test(dateString)) {
+  const match = DATE_REGEX.exec(dateString);
+  if (!match) {
     return false;
   }
-  const date = new Date(dateString);
-  return !isNaN(date.getTime());
+
+  const year = Number(match[0].slice(0, 4));
+  const month = Number(match[0].slice(5, 7));
+  const day = Number(match[0].slice(8, 10));
+  if (month < 1 || month > 12 || day < 1) {
+    return false;
+  }
+
+  const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [
+    31,
+    isLeapYear ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ];
+
+  return day <= daysInMonth[month - 1];
 }

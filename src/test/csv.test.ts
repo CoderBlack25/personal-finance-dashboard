@@ -174,6 +174,30 @@ describe("validateCsvRows", () => {
     ).toBe(true);
   });
 
+  it.each(["2026-02-29", "2026-04-31", "2026-00-10", "2026-05-00"])(
+    "rejects rows with impossible calendar date %s",
+    (date) => {
+      const result = validateCsvRows(
+        [
+          {
+            rowNumber: 2,
+            date,
+            amount: "-50.00",
+            description: "Groceries",
+            raw: [date, "-50.00", "Groceries"],
+          },
+        ],
+        headers,
+      );
+
+      expect(result.valid).toHaveLength(0);
+      expect(result.invalid).toHaveLength(1);
+      expect(result.invalid[0].errors.some((error) =>
+        error.message.includes("calendar date"),
+      )).toBe(true);
+    },
+  );
+
   it("rejects rows with missing date", () => {
     const rows = [
       {
@@ -257,11 +281,15 @@ describe("isValidDate", () => {
   it("accepts valid ISO dates", () => {
     expect(isValidDate("2026-08-01")).toBe(true);
     expect(isValidDate("2026-12-31")).toBe(true);
+    expect(isValidDate("2024-02-29")).toBe(true);
   });
 
   it("rejects invalid dates", () => {
     expect(isValidDate("08/01/2026")).toBe(false);
     expect(isValidDate("2026-13-01")).toBe(false);
+    expect(isValidDate("2026-02-29")).toBe(false);
+    expect(isValidDate("2026-04-31")).toBe(false);
+    expect(isValidDate("2024-02-30")).toBe(false);
     expect(isValidDate("not-a-date")).toBe(false);
     expect(isValidDate("")).toBe(false);
   });

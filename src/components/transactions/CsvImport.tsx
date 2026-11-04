@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFinanceStore } from "@/store/store";
 import { parseCsv } from "@/utils/csv";
 import { validateCsvRows, parseCsvAmount } from "@/schemas/csvSchema";
@@ -12,7 +12,6 @@ export function CsvImport() {
   const importTransactions = useFinanceStore(
     (state) => state.importTransactions,
   );
-  const error = useFinanceStore((state) => state.error);
 
   const [file, setFile] = useState<File | null>(null);
   const [parseResult, setParseResult] = useState<ReturnType<
@@ -21,30 +20,87 @@ export function CsvImport() {
   const [validationResult, setValidationResult] = useState<ReturnType<
     typeof validateCsvRows
   > | null>(null);
+  const [isReading, setIsReading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
+  const [operationError, setOperationError] = useState<string | null>(null);
+  const readerRef = useRef<FileReader | null>(null);
+
+  useEffect(
+    () => () => {
+      if (readerRef.current?.readyState === FileReader.LOADING) {
+        readerRef.current.onload = null;
+        readerRef.current.onerror = null;
+        readerRef.current.onabort = null;
+        readerRef.current.abort();
+      }
+    },
+    [],
+  );
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0] ?? null;
     if (!selectedFile) return;
 
+    event.target.value = "";
+    if (readerRef.current?.readyState === FileReader.LOADING) {
+      readerRef.current.onload = null;
+      readerRef.current.onerror = null;
+      readerRef.current.onabort = null;
+      readerRef.current.abort();
+    }
+
     setFile(selectedFile);
     setParseResult(null);
     setValidationResult(null);
     setImportedCount(0);
+    setOperationError(null);
+    setIsReading(true);
 
     const reader = new FileReader();
+    readerRef.current = reader;
     reader.onload = () => {
-      const text = reader.result as string;
-      const result = parseCsv(text);
-      setParseResult(result);
+      if (typeof reader.result !== "string") {
+        setOperationError("Could not read the selected file. Try another CSV file.");
+        setIsReading(false);
+        return;
+      }
 
-      if (result.rows.length > 0) {
-        const validation = validateCsvRows(result.rows, result.headers);
-        setValidationResult(validation);
+      try {
+        const result = parseCsv(reader.result);
+        setParseResult(result);
+        setValidationResult(
+          result.rows.length > 0
+            ? validateCsvRows(result.rows, result.headers)
+            : null,
+        );
+      } catch {
+        setOperationError(
+          "Could not process the selected file. Check that it is a valid CSV and try again.",
+        );
+      } finally {
+        setIsReading(false);
       }
     };
-    reader.readAsText(selectedFile);
+    reader.onerror = () => {
+      setOperationError(
+        "Could not read the selected file. Check file access and try again.",
+      );
+      setIsReading(false);
+    };
+    reader.onabort = () => {
+      setOperationError("Reading the selected file was cancelled. Try again.");
+      setIsReading(false);
+    };
+
+    try {
+      reader.readAsText(selectedFile);
+    } catch {
+      setOperationError(
+        "Could not read the selected file. Check file access and try again.",
+      );
+      setIsReading(false);
+    }
   };
 
   const handleImport = async () => {
@@ -54,6 +110,7 @@ export function CsvImport() {
     if (validRows.length === 0) return;
 
     setImporting(true);
+    setOperationError(null);
     try {
       const inputTransactions = validRows.map((row) => ({
         date: row.date,
@@ -66,14 +123,21 @@ export function CsvImport() {
         accountId: selectedAccountId,
         transactions: inputTransactions,
       });
-      if (!imported) return;
+      if (!imported) {
+        setOperationError(
+          "Import failed. Your transactions were not imported. Check that browser storage is available and try again.",
+        );
+        return;
+      }
 
       setImportedCount(validRows.length);
       setFile(null);
       setParseResult(null);
       setValidationResult(null);
     } catch {
-      // Error already set by store
+      setOperationError(
+        "Import failed. Your transactions were not imported. Check that browser storage is available and try again.",
+      );
     } finally {
       setImporting(false);
     }
@@ -111,9 +175,9 @@ export function CsvImport() {
                 file:text-primary-foreground hover:file:bg-primary/80"
             />
           </label>
-          {error && (
+          {operationError && (
             <Alert variant="destructive" className="mt-4">
-              {error}
+              {operationError}
             </Alert>
           )}
           {importedCount > 0 && (
@@ -145,6 +209,29 @@ export function CsvImport() {
         </div>
       </div>
 
+      {isReading && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Reading file…
+        </p>
+      )}
+      {operationError && (
+        <Alert variant="destructive">{operationError}</Alert>
+      )}
+      <label className="block">
+        <span className="text-sm font-medium text-foreground">
+          Choose another CSV file
+        </span>
+        <input
+          type="file"
+          accept=".csv"
+          onChange={handleFileChange}
+          className="mt-2 block w-full text-sm text-muted-foreground
+            file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0
+            file:text-sm file:font-semibold file:bg-primary
+            file:text-primary-foreground hover:file:bg-primary/80"
+        />
+      </label>
+
       <div className="flex items-center gap-2">
         <span className="text-sm text-foreground">
           {validCount} valid, {invalidCount} invalid
@@ -152,7 +239,12 @@ export function CsvImport() {
         <Button
           type="button"
           onClick={handleImport}
-          disabled={importing || validCount === 0 || !selectedAccountId}
+          disabled={
+            isReading ||
+            importing ||
+            validCount === 0 ||
+            !selectedAccountId
+          }
         >
           {importing ? "Importing..." : `Import ${validCount} transaction(s)`}
         </Button>
@@ -176,6 +268,17 @@ export function CsvImport() {
           </ul>
         </Alert>
       )}
+
+      {parseResult?.errors.map((parseError, index) => (
+        <Alert
+          key={`${parseError.rowNumber}-${index}`}
+          variant="destructive"
+        >
+          {parseError.rowNumber > 0
+            ? `Row ${parseError.rowNumber}: ${parseError.message}`
+            : parseError.message}
+        </Alert>
+      ))}
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
@@ -273,14 +376,6 @@ export function CsvImport() {
         </div>
       )}
 
-      {error && (
-        <Alert
-          variant="destructive"
-          className="border-destructive/50 bg-destructive/5"
-        >
-          {error}
-        </Alert>
-      )}
     </section>
   );
 }

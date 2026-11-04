@@ -40,6 +40,15 @@ Chart.register(
   Legend,
 );
 
+const MIN_REPORT_YEAR = 1900;
+const MAX_REPORT_YEAR = 2100;
+
+function isValidReportYear(value: string): boolean {
+  if (!/^\d{4}$/.test(value)) return false;
+  const year = Number(value);
+  return year >= MIN_REPORT_YEAR && year <= MAX_REPORT_YEAR;
+}
+
 export function MonthlySummary() {
   const { data: allTransactions, error: transactionsError } =
     useAllTransactions();
@@ -52,6 +61,7 @@ export function MonthlySummary() {
   );
   const now = new Date();
   const { year, month } = summaryFilters;
+  const [yearInput, setYearInput] = useState(String(year));
   const [showTable, setShowTable] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -236,12 +246,30 @@ export function MonthlySummary() {
           <Input
             id="summary-year"
             type="number"
-            value={year}
-            onChange={(event) =>
-              updateSummaryFilters({ year: Number(event.target.value) })
-            }
+            min={MIN_REPORT_YEAR}
+            max={MAX_REPORT_YEAR}
+            step={1}
+            value={yearInput}
+            aria-invalid={!isValidReportYear(yearInput)}
+            aria-describedby="summary-year-error"
+            onChange={(event) => {
+              const value = event.target.value;
+              setYearInput(value);
+              if (isValidReportYear(value)) {
+                updateSummaryFilters({ year: Number(value) });
+              }
+            }}
             className="w-32"
           />
+          {!isValidReportYear(yearInput) && (
+            <p
+              id="summary-year-error"
+              role="alert"
+              className="mt-1 text-xs text-destructive"
+            >
+              Enter a year between {MIN_REPORT_YEAR} and {MAX_REPORT_YEAR}.
+            </p>
+          )}
         </div>
       </div>
 
