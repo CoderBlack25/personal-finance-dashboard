@@ -74,13 +74,15 @@ export function TransactionList() {
     setEditingId(null);
   }, [selectedAccountId, resetTransactionFilters]);
 
+  const activeAccountIds = new Set(accounts.map((account) => account.id));
   const accountScopedTransactions = allTransactions.filter(
     (transaction) =>
-      accountFilterId === ALL_ACCOUNTS ||
-      transaction.accountId === accountFilterId,
+      activeAccountIds.has(transaction.accountId) &&
+      (accountFilterId === ALL_ACCOUNTS ||
+        transaction.accountId === accountFilterId),
   );
   const transactionsByAccount = new Map<string, typeof allTransactions>();
-  for (const transaction of allTransactions) {
+  for (const transaction of accountScopedTransactions) {
     const accountTransactions =
       transactionsByAccount.get(transaction.accountId) ?? [];
     accountTransactions.push(transaction);

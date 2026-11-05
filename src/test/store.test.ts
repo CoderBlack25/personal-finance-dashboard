@@ -6,12 +6,14 @@ import {
   addCategory,
   addTransaction,
   countTransactionsForAccount,
+  deleteCategory,
   deleteAccount,
   getAccounts,
   importTransactions,
   putTransaction,
   updateAccount,
   deleteTransaction,
+  updateCategory,
 } from "@/services/db";
 
 vi.mock("@/services/db", async (importOriginal) => {
@@ -22,12 +24,14 @@ vi.mock("@/services/db", async (importOriginal) => {
     addCategory: vi.fn(),
     addTransaction: vi.fn(),
     countTransactionsForAccount: vi.fn(),
+    deleteCategory: vi.fn(),
     deleteAccount: vi.fn(),
     getAccounts: vi.fn(),
     importTransactions: vi.fn(),
     putTransaction: vi.fn(),
     updateAccount: vi.fn(),
     deleteTransaction: vi.fn(),
+    updateCategory: vi.fn(),
   };
 });
 
@@ -151,14 +155,22 @@ describe("UI store", () => {
       id: "category-1",
       name: "Food",
     });
+    vi.mocked(updateCategory).mockResolvedValue(undefined);
+    vi.mocked(deleteCategory).mockResolvedValue(undefined);
 
     const store = useFinanceStore.getState();
     await store.createTransaction(transaction);
     await store.updateTransaction(transaction);
     await store.deleteTransaction(transaction.id);
     await store.createCategory({ name: "Food" });
+    await store.updateCategory({ id: "category-1", name: "Food & Drink" });
+    useFinanceStore.getState().updateTransactionFilters({
+      categoryId: "category-1",
+    });
+    await store.deleteCategory("category-1");
 
-    expect(useFinanceStore.getState().dataRevision).toBe(4);
+    expect(useFinanceStore.getState().dataRevision).toBe(6);
+    expect(useFinanceStore.getState().transactionFilters.categoryId).toBeNull();
   });
 
   it("reports transaction errors without persisting domain data in the store", async () => {
@@ -228,6 +240,20 @@ describe("UI store", () => {
 
     expect(await useFinanceStore.getState().createCategory({ name: "Food" })).toBe(
       "Could not create category.",
+    );
+  });
+
+  it("reports category update and deletion errors", async () => {
+    vi.mocked(updateCategory).mockRejectedValue(new Error("storage failed"));
+    vi.mocked(deleteCategory).mockRejectedValue(new Error("storage failed"));
+
+    expect(
+      await useFinanceStore
+        .getState()
+        .updateCategory({ id: "category-1", name: "Food" }),
+    ).toBe("Could not update category.");
+    expect(await useFinanceStore.getState().deleteCategory("category-1")).toBe(
+      "Could not delete category.",
     );
   });
 });

@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CategoryManager } from "@/components/categories/CategoryManager";
 import { useFinanceStore } from "@/store/store";
-import { useCategories } from "@/hooks/useFinanceData";
+import { useAllTransactions, useCategories } from "@/hooks/useFinanceData";
 
 vi.mock("@/store/store", () => {
   const useFinanceStore = vi.fn() as any;
@@ -13,23 +13,37 @@ vi.mock("@/store/store", () => {
 });
 
 vi.mock("@/hooks/useFinanceData", () => ({
+  useAllTransactions: vi.fn(),
   useCategories: vi.fn(),
 }));
 
 describe("CategoryManager", () => {
   const mockCreateCategory = vi.fn();
+  const mockUpdateCategory = vi.fn();
+  const mockDeleteCategory = vi.fn();
 
   function mockState(
-    overrides: Partial<{ categories: any[]; error: string | null }> = {},
+    overrides: Partial<{
+      categories: any[];
+      transactions: any[];
+      error: string | null;
+    }> = {},
   ) {
     vi.mocked(useCategories).mockReturnValue({
       data: overrides.categories ?? [],
       isLoading: false,
       error: null,
     });
+    vi.mocked(useAllTransactions).mockReturnValue({
+      data: overrides.transactions ?? [],
+      isLoading: false,
+      error: null,
+    });
     vi.mocked(useFinanceStore).mockImplementation((selector: any) =>
       selector({
         createCategory: mockCreateCategory,
+        updateCategory: mockUpdateCategory,
+        deleteCategory: mockDeleteCategory,
         error: null,
         ...overrides,
       }),
@@ -38,7 +52,11 @@ describe("CategoryManager", () => {
 
   beforeEach(() => {
     mockCreateCategory.mockReset();
+    mockUpdateCategory.mockReset();
+    mockDeleteCategory.mockReset();
     mockCreateCategory.mockResolvedValue(null);
+    mockUpdateCategory.mockResolvedValue(null);
+    mockDeleteCategory.mockResolvedValue(null);
     mockState();
   });
 
@@ -132,5 +150,80 @@ describe("CategoryManager", () => {
     render(<CategoryManager />);
 
     expect(screen.queryByText("Could not save transaction.")).toBeNull();
+  });
+
+  it("renames a category and blocks a duplicate name", async () => {
+    const user = userEvent.setup();
+    mockState({
+      categories: [
+        { id: "cat-1", name: "Groceries" },
+        { id: "cat-2", name: "Dining" },
+      ],
+    });
+    render(<CategoryManager />);
+
+    await user.click(screen.getByRole("button", { name: "Rename Groceries" }));
+    const renameInput = screen.getByLabelText("Rename Groceries");
+    await user.clear(renameInput);
+    await user.type(renameInput, "DINING");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText(/already exists/i)).toBeInTheDocument();
+    expect(mockUpdateCategory).not.toHaveBeenCalled();
+
+    await user.clear(renameInput);
+    await user.type(renameInput, "Food");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(mockUpdateCategory).toHaveBeenCalledWith({
+        id: "cat-1",
+        name: "Food",
+      }),
+    );
+  });
+
+  it("confirms linked transactions become uncategorized when deleting", async () => {
+    const user = userEvent.setup();
+    mockState({
+      categories: [{ id: "cat-1", name: "Groceries" }],
+      transactions: [
+        { id: "tx-1", categoryId: "cat-1" },
+        { id: "tx-2", categoryId: "cat-1" },
+        { id: "tx-3", categoryId: null },
+      ],
+    });
+    render(<CategoryManager />);
+
+    await user.click(screen.getByRole("button", { name: "Delete Groceries" }));
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByText(/assigned to 2 transaction\(s\)/i),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/leave those transactions uncategorized/i),
+    ).toBeInTheDocument();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Delete category" }),
+    );
+
+    await waitFor(() =>
+      expect(mockDeleteCategory).toHaveBeenCalledWith("cat-1"),
+    );
+  });
+
+  it("keeps the delete dialog open and displays an error on failure", async () => {
+    const user = userEvent.setup();
+    mockDeleteCategory.mockResolvedValue("Could not delete category.");
+    mockState({ categories: [{ id: "cat-1", name: "Groceries" }] });
+    render(<CategoryManager />);
+
+    await user.click(screen.getByRole("button", { name: "Delete Groceries" }));
+    await user.click(screen.getByRole("button", { name: "Delete category" }));
+
+    expect(
+      await screen.findByText("Could not delete category."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });

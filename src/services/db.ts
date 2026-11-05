@@ -241,3 +241,30 @@ export async function addCategory(
   await db.add("categories", category);
   return category;
 }
+
+export async function updateCategory(category: Category): Promise<void> {
+  const db = await getDB();
+  await db.put("categories", category);
+}
+
+export async function deleteCategory(categoryId: string): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(["categories", "transactions"], "readwrite");
+  const [category, transactions] = await Promise.all([
+    tx.objectStore("categories").get(categoryId),
+    tx.objectStore("transactions").getAll(),
+  ]);
+  if (!category) {
+    await tx.done;
+    throw new Error("Category not found.");
+  }
+
+  const transactionStore = tx.objectStore("transactions");
+  for (const transaction of transactions) {
+    if (transaction.categoryId === categoryId) {
+      await transactionStore.put({ ...transaction, categoryId: null });
+    }
+  }
+  await tx.objectStore("categories").delete(categoryId);
+  await tx.done;
+}

@@ -7,6 +7,8 @@ import {
   addTransaction,
   putTransaction,
   addCategory,
+  updateCategory as updateCategoryRecord,
+  deleteCategory as deleteCategoryRecord,
   importTransactions as importTransactionsDb,
   updateAccount as updateAccountRecord,
   deleteAccount as deleteAccountRecord,
@@ -58,6 +60,8 @@ interface FinanceStore {
     }>;
   }) => Promise<boolean>;
   createCategory: (input: Omit<Category, "id">) => Promise<string | null>;
+  updateCategory: (category: Category) => Promise<string | null>;
+  deleteCategory: (categoryId: string) => Promise<string | null>;
   setActiveView: (view: View) => void;
   updateTransactionFilters: (
     filters: Partial<FinanceStore["transactionFilters"]>,
@@ -308,6 +312,42 @@ export const useFinanceStore = create<FinanceStore>()(
           return null;
         } catch (cause) {
           const message = "Could not create category.";
+          set({ error: message, isLoading: false });
+          return message;
+        }
+      },
+
+      updateCategory: async (category) => {
+        set({ isLoading: true, error: null });
+        try {
+          await updateCategoryRecord(category);
+          set((state) => ({
+            dataRevision: state.dataRevision + 1,
+            isLoading: false,
+          }));
+          return null;
+        } catch {
+          const message = "Could not update category.";
+          set({ error: message, isLoading: false });
+          return message;
+        }
+      },
+
+      deleteCategory: async (categoryId) => {
+        set({ isLoading: true, error: null });
+        try {
+          await deleteCategoryRecord(categoryId);
+          set((state) => ({
+            dataRevision: state.dataRevision + 1,
+            transactionFilters:
+              state.transactionFilters.categoryId === categoryId
+                ? { ...state.transactionFilters, categoryId: null }
+                : state.transactionFilters,
+            isLoading: false,
+          }));
+          return null;
+        } catch {
+          const message = "Could not delete category.";
           set({ error: message, isLoading: false });
           return message;
         }

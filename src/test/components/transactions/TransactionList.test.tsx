@@ -80,6 +80,43 @@ describe("TransactionList", () => {
     expect(screen.getByRole("option", { name: "All accounts" })).toBeInTheDocument();
   });
 
+  it("excludes archived-account transactions from the All accounts view", () => {
+    mockState({
+      selectedAccountId: null,
+      transactions: [],
+      accounts: [{ id: "active", name: "Checking", archived: false }],
+      allTransactions: [
+        {
+          id: "active-transaction",
+          accountId: "active",
+          categoryId: null,
+          amountInCents: -500,
+          date: "2026-08-01",
+          description: "Active account purchase",
+        },
+        {
+          id: "archived-transaction",
+          accountId: "archived",
+          categoryId: null,
+          amountInCents: 50000,
+          date: "2026-08-02",
+          description: "Archived account deposit",
+        },
+      ],
+    });
+
+    render(<TransactionList />);
+
+    expect(screen.getByLabelText("Account")).toHaveValue("");
+    expect(screen.getByText("Active account purchase")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Archived account deposit"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Archived" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows an empty state when an account is selected but has no transactions", () => {
     mockState({ selectedAccountId: "acc_1", transactions: [] });
     render(<TransactionList />);
