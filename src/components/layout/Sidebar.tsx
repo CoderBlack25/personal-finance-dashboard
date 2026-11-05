@@ -11,6 +11,7 @@ import {
   Banknote,
   Plus,
   Tags,
+  Gauge,
 } from "lucide-react";
 import type { View } from "@/store/store";
 
@@ -19,6 +20,7 @@ const NAV_ITEMS: Record<View, { label: string; icon: React.ElementType }> = {
   transactions: { label: "Transactions", icon: List },
   summary: { label: "Summary", icon: PieChart },
   categories: { label: "Categories", icon: Tags },
+  budgets: { label: "Budgets", icon: Gauge },
 };
 
 const VIEWS = Object.keys(NAV_ITEMS) as View[];

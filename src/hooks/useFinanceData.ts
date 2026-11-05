@@ -2,10 +2,16 @@ import { useCallback, useEffect, useState } from "react";
 import {
   getAccounts,
   getAllTransactions,
+  getCategoryBudgets,
   getCategories,
 } from "@/services/db";
 import { useFinanceStore } from "@/store/store";
-import type { Account, Category, Transaction } from "@/types/types";
+import type {
+  Account,
+  Category,
+  CategoryBudget,
+  Transaction,
+} from "@/types/types";
 
 interface QueryState<T> {
   data: T;
@@ -70,4 +76,8 @@ export function useAllTransactions() {
 
 export function useCategories() {
   return useFinanceQuery(getCategories, [] as Category[]);
+}
+
+export function useCategoryBudgets() {
+  return useFinanceQuery(getCategoryBudgets, [] as CategoryBudget[]);
 }

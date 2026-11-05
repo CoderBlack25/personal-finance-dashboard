@@ -12,6 +12,11 @@ export type Category = {
   name: string;
 };
 
+export type CategoryBudget = {
+  categoryId: string;
+  amountInCents: number;
+};
+
 export type Transaction = {
   id: string;
   accountId: string;

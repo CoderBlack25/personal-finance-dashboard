@@ -14,6 +14,8 @@ import {
   updateAccount,
   deleteTransaction,
   updateCategory,
+  deleteCategoryBudget,
+  setCategoryBudget,
 } from "@/services/db";
 
 vi.mock("@/services/db", async (importOriginal) => {
@@ -32,6 +34,8 @@ vi.mock("@/services/db", async (importOriginal) => {
     updateAccount: vi.fn(),
     deleteTransaction: vi.fn(),
     updateCategory: vi.fn(),
+    deleteCategoryBudget: vi.fn(),
+    setCategoryBudget: vi.fn(),
   };
 });
 
@@ -144,6 +148,26 @@ describe("UI store", () => {
       localStorage.getItem("finance-store") ?? "{}",
     ) as { state?: { recurringOverrides?: Record<string, boolean> } };
     expect(persistedState.state?.recurringOverrides?.[key]).toBe(false);
+  });
+
+  it("invalidates budget queries after budget updates and removals", async () => {
+    vi.mocked(setCategoryBudget).mockResolvedValue(undefined);
+    vi.mocked(deleteCategoryBudget).mockResolvedValue(undefined);
+
+    const store = useFinanceStore.getState();
+    expect(
+      await store.setCategoryBudget({
+        categoryId: "food",
+        amountInCents: 5000,
+      }),
+    ).toBeNull();
+    expect(await store.deleteCategoryBudget("food")).toBeNull();
+    expect(setCategoryBudget).toHaveBeenCalledWith({
+      categoryId: "food",
+      amountInCents: 5000,
+    });
+    expect(deleteCategoryBudget).toHaveBeenCalledWith("food");
+    expect(useFinanceStore.getState().dataRevision).toBe(2);
   });
 
   it("selects a newly created account and invalidates queried data", async () => {

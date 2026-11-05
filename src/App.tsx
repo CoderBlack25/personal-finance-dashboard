@@ -24,6 +24,12 @@ const MonthlySummary = lazy(() =>
   })),
 );
 
+const BudgetManager = lazy(() =>
+  import("@/components/budgets/BudgetManager").then((mod) => ({
+    default: mod.BudgetManager,
+  })),
+);
+
 const App = () => {
   const loadAccounts = useFinanceStore((state) => state.loadAccounts);
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
@@ -134,6 +140,14 @@ const App = () => {
         )}
 
         {activeView === "categories" && <CategoryManager />}
+
+        {activeView === "budgets" && (
+          <Suspense
+            fallback={<p className="text-muted-foreground">Loading budgets...</p>}
+          >
+            <BudgetManager />
+          </Suspense>
+        )}
       </main>
       <Dialog
         open={isAddAccountOpen}

@@ -1,8 +1,13 @@
 import { openDB, type DBSchema, type IDBPDatabase, unwrap } from "idb";
-import type { Account, Category, Transaction } from "@/types/types";
+import type {
+  Account,
+  Category,
+  CategoryBudget,
+  Transaction,
+} from "@/types/types";
 
 const DB_NAME = "finance-dashboard";
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: "cat-income", name: "Income" },
@@ -27,6 +32,10 @@ interface FinanceDB extends DBSchema {
   categories: {
     key: string;
     value: Category;
+  };
+  budgets: {
+    key: string;
+    value: CategoryBudget;
   };
 }
 
@@ -53,6 +62,10 @@ function getDB(): Promise<IDBPDatabase<FinanceDB>> {
           for (const category of DEFAULT_CATEGORIES) {
             catStore.add(category);
           }
+        }
+
+        if (oldVersion < 7) {
+          db.createObjectStore("budgets", { keyPath: "categoryId" });
         }
 
         if (oldVersion < 5) {
@@ -249,7 +262,10 @@ export async function updateCategory(category: Category): Promise<void> {
 
 export async function deleteCategory(categoryId: string): Promise<void> {
   const db = await getDB();
-  const tx = db.transaction(["categories", "transactions"], "readwrite");
+  const tx = db.transaction(
+    ["categories", "transactions", "budgets"],
+    "readwrite",
+  );
   const [category, transactions] = await Promise.all([
     tx.objectStore("categories").get(categoryId),
     tx.objectStore("transactions").getAll(),
@@ -266,5 +282,31 @@ export async function deleteCategory(categoryId: string): Promise<void> {
     }
   }
   await tx.objectStore("categories").delete(categoryId);
+  await tx.objectStore("budgets").delete(categoryId);
   await tx.done;
+}
+
+export async function getCategoryBudgets(): Promise<CategoryBudget[]> {
+  const db = await getDB();
+  return db.getAll("budgets");
+}
+
+export async function setCategoryBudget(
+  budget: CategoryBudget,
+): Promise<void> {
+  if (
+    !Number.isSafeInteger(budget.amountInCents) ||
+    budget.amountInCents <= 0
+  ) {
+    throw new Error("Budget must be a positive amount in cents.");
+  }
+  const db = await getDB();
+  await db.put("budgets", budget);
+}
+
+export async function deleteCategoryBudget(
+  categoryId: string,
+): Promise<void> {
+  const db = await getDB();
+  await db.delete("budgets", categoryId);
 }

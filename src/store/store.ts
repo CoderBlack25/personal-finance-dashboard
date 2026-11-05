@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Account, Category, Transaction } from "@/types/types";
+import type {
+  Account,
+  Category,
+  CategoryBudget,
+  Transaction,
+} from "@/types/types";
 import {
   addAccount,
   getAccounts,
@@ -9,6 +14,8 @@ import {
   addCategory,
   updateCategory as updateCategoryRecord,
   deleteCategory as deleteCategoryRecord,
+  setCategoryBudget as setCategoryBudgetRecord,
+  deleteCategoryBudget as deleteCategoryBudgetRecord,
   importTransactions as importTransactionsDb,
   updateAccount as updateAccountRecord,
   deleteAccount as deleteAccountRecord,
@@ -20,7 +27,8 @@ export type View =
   | "dashboard"
   | "transactions"
   | "summary"
-  | "categories";
+  | "categories"
+  | "budgets";
 
 interface FinanceStore {
   selectedAccountId: string | null;
@@ -63,6 +71,8 @@ interface FinanceStore {
   createCategory: (input: Omit<Category, "id">) => Promise<string | null>;
   updateCategory: (category: Category) => Promise<string | null>;
   deleteCategory: (categoryId: string) => Promise<string | null>;
+  setCategoryBudget: (budget: CategoryBudget) => Promise<string | null>;
+  deleteCategoryBudget: (categoryId: string) => Promise<string | null>;
   setActiveView: (view: View) => void;
   updateTransactionFilters: (
     filters: Partial<FinanceStore["transactionFilters"]>,
@@ -351,6 +361,38 @@ export const useFinanceStore = create<FinanceStore>()(
           return null;
         } catch {
           const message = "Could not delete category.";
+          set({ error: message, isLoading: false });
+          return message;
+        }
+      },
+
+      setCategoryBudget: async (budget) => {
+        set({ isLoading: true, error: null });
+        try {
+          await setCategoryBudgetRecord(budget);
+          set((state) => ({
+            dataRevision: state.dataRevision + 1,
+            isLoading: false,
+          }));
+          return null;
+        } catch {
+          const message = "Could not save category budget.";
+          set({ error: message, isLoading: false });
+          return message;
+        }
+      },
+
+      deleteCategoryBudget: async (categoryId) => {
+        set({ isLoading: true, error: null });
+        try {
+          await deleteCategoryBudgetRecord(categoryId);
+          set((state) => ({
+            dataRevision: state.dataRevision + 1,
+            isLoading: false,
+          }));
+          return null;
+        } catch {
+          const message = "Could not remove category budget.";
           set({ error: message, isLoading: false });
           return message;
         }

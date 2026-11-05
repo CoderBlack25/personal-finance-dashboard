@@ -92,6 +92,9 @@ describe("Sidebar", () => {
     expect(
       screen.getByRole("button", { name: "Categories" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Budgets" }),
+    ).toBeInTheDocument();
   });
 
   it("changes the view when a navigation item is clicked", async () => {
@@ -108,6 +111,21 @@ describe("Sidebar", () => {
     await user.click(screen.getByRole("button", { name: "Categories" }));
 
     expect(onViewChange).toHaveBeenCalledWith("categories");
+  });
+
+  it("navigates to budgets", async () => {
+    const user = userEvent.setup();
+    const onViewChange = vi.fn();
+    render(
+      <Sidebar
+        activeView="dashboard"
+        onViewChange={onViewChange}
+        onAddAccount={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Budgets" }));
+    expect(onViewChange).toHaveBeenCalledWith("budgets");
   });
 
   it("invokes the add-account action when requested", async () => {
