@@ -38,6 +38,7 @@ function mockState(state: {
   allTransactions?: any[];
   accounts?: any[];
   categories?: any[];
+  recurringOverrides?: Record<string, boolean>;
 }) {
   const accounts =
     state.accounts ??
@@ -68,6 +69,8 @@ function mockState(state: {
       accountId: state.selectedAccountId ?? "",
       categoryId: null,
     },
+    recurringOverrides: state.recurringOverrides ?? {},
+    setRecurringOverride: vi.fn(),
     deleteTransaction: vi.fn().mockResolvedValue(null),
   });
 }
@@ -115,6 +118,189 @@ describe("TransactionList", () => {
     expect(
       screen.queryByRole("option", { name: "Archived" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows a frequency and confidence for detected recurring transactions", () => {
+    mockState({
+      selectedAccountId: "acc_1",
+      transactions: [
+        {
+          id: "jan",
+          accountId: "acc_1",
+          categoryId: "utilities",
+          amountInCents: -10_000,
+          date: "2026-01-15",
+          description: "Electric Company Ref 1122",
+        },
+        {
+          id: "feb",
+          accountId: "acc_1",
+          categoryId: "utilities",
+          amountInCents: -10_100,
+          date: "2026-02-15",
+          description: "electric   company 4433",
+        },
+        {
+          id: "mar",
+          accountId: "acc_1",
+          categoryId: "utilities",
+          amountInCents: -9_900,
+          date: "2026-03-15",
+          description: "Electric Company Ref 5566",
+        },
+      ],
+    });
+
+    render(<TransactionList />);
+
+    const badges = screen.getAllByText("Recurring");
+    expect(badges).toHaveLength(3);
+    expect(badges[0]).toHaveAttribute(
+      "title",
+      "Monthly recurrence · high confidence",
+    );
+    expect(
+      screen.getByRole("button", {
+        name: "Dismiss recurring flag for Electric Company Ref 5566",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("lets a user dismiss a detected recurring group", async () => {
+    mockState({
+      selectedAccountId: "acc_1",
+      transactions: [
+        {
+          id: "jan",
+          accountId: "acc_1",
+          categoryId: null,
+          amountInCents: -10_000,
+          date: "2026-01-15",
+          description: "Electric Company",
+        },
+        {
+          id: "feb",
+          accountId: "acc_1",
+          categoryId: null,
+          amountInCents: -10_000,
+          date: "2026-02-15",
+          description: "Electric Company",
+        },
+        {
+          id: "mar",
+          accountId: "acc_1",
+          categoryId: null,
+          amountInCents: -10_000,
+          date: "2026-03-15",
+          description: "Electric Company",
+        },
+      ],
+    });
+    const setOverride = vi.fn();
+    useFinanceStore.setState({ setRecurringOverride: setOverride });
+
+    const user = userEvent.setup();
+    render(<TransactionList />);
+    await user.click(
+      screen.getAllByRole("button", {
+        name: "Dismiss recurring flag for Electric Company",
+      })[0],
+    );
+
+    expect(setOverride).toHaveBeenCalledWith(
+      JSON.stringify(["electric company", "expense"]),
+      false,
+    );
+  });
+
+  it("lets a user manually mark a one-off transaction as recurring", async () => {
+    const setOverride = vi.fn();
+    mockState({
+      selectedAccountId: "acc_1",
+      transactions: [
+        {
+          id: "one",
+          accountId: "acc_1",
+          categoryId: null,
+          amountInCents: -1000,
+          date: "2026-08-01",
+          description: "Gym",
+        },
+      ],
+    });
+    useFinanceStore.setState({ setRecurringOverride: setOverride });
+
+    const user = userEvent.setup();
+    render(<TransactionList />);
+    await user.click(
+      screen.getByRole("button", { name: "Mark Gym as recurring" }),
+    );
+
+    expect(setOverride).toHaveBeenCalledWith(
+      JSON.stringify(["gym", "expense"]),
+      true,
+    );
+  });
+
+  it("respects saved dismissal and manual recurrence overrides", () => {
+    const transactions = [
+      {
+        id: "jan",
+        accountId: "acc_1",
+        categoryId: null,
+        amountInCents: -10_000,
+        date: "2026-01-15",
+        description: "Electric Company",
+      },
+      {
+        id: "feb",
+        accountId: "acc_1",
+        categoryId: null,
+        amountInCents: -10_000,
+        date: "2026-02-15",
+        description: "Electric Company",
+      },
+      {
+        id: "mar",
+        accountId: "acc_1",
+        categoryId: null,
+        amountInCents: -10_000,
+        date: "2026-03-15",
+        description: "Electric Company",
+      },
+    ];
+    const dismissedKey = JSON.stringify(["electric company", "expense"]);
+    mockState({
+      selectedAccountId: "acc_1",
+      transactions,
+      recurringOverrides: { [dismissedKey]: false },
+    });
+
+    const { unmount } = render(<TransactionList />);
+    expect(screen.queryByText("Recurring")).not.toBeInTheDocument();
+    unmount();
+
+    mockState({
+      selectedAccountId: "acc_1",
+      transactions: [
+        {
+          ...transactions[0],
+          id: "gym",
+          description: "Gym",
+          date: "2026-08-01",
+          amountInCents: -5000,
+        },
+      ],
+      recurringOverrides: {
+        [JSON.stringify(["gym", "expense"])]: true,
+      },
+    });
+    render(<TransactionList />);
+
+    expect(screen.getByText("Recurring")).toHaveAttribute(
+      "title",
+      "Manually marked recurring",
+    );
   });
 
   it("shows an empty state when an account is selected but has no transactions", () => {

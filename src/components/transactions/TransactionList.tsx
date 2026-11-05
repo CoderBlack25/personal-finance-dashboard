@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { EditTransactionForm } from "@/components/transactions/EditTransactionForm";
 import { useFinanceStore } from "@/store/store";
@@ -11,6 +11,7 @@ import { formatAccessibleMoney, formatCentsToDollar } from "@/utils/money";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Search, List, Pencil, Trash2 } from "lucide-react";
 import type { Transaction } from "@/types/types";
 import {
@@ -25,12 +26,31 @@ import {
   compareTransactionChronologically,
   computeRunningBalances,
 } from "@/utils/derived";
+import {
+  detectRecurringTransactions,
+  getRecurringGroupKey,
+  type RecurrenceConfidence,
+  type RecurringFrequency,
+} from "@/utils/recurring";
 
 const ALL_ACCOUNTS = "";
 const VIRTUALIZATION_THRESHOLD = 300;
 const VIRTUALIZATION_OVERSCAN = 8;
 const VIRTUALIZED_LIST_HEIGHT = 600;
 const ESTIMATED_ROW_HEIGHT = 56;
+
+function formatFrequency(frequency: RecurringFrequency): string {
+  switch (frequency) {
+    case "weekly":
+      return "Weekly";
+    case "bi-weekly":
+      return "Bi-weekly";
+    case "monthly":
+      return "Monthly";
+    case "yearly":
+      return "Yearly";
+  }
+}
 
 export function TransactionList() {
   const selectedAccountId = useFinanceStore((state) => state.selectedAccountId);
@@ -48,6 +68,12 @@ export function TransactionList() {
   );
   const resetTransactionFilters = useFinanceStore(
     (state) => state.resetTransactionFilters,
+  );
+  const recurringOverrides = useFinanceStore(
+    (state) => state.recurringOverrides,
+  );
+  const setRecurringOverride = useFinanceStore(
+    (state) => state.setRecurringOverride,
   );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
@@ -74,13 +100,77 @@ export function TransactionList() {
     setEditingId(null);
   }, [selectedAccountId, resetTransactionFilters]);
 
-  const activeAccountIds = new Set(accounts.map((account) => account.id));
-  const accountScopedTransactions = allTransactions.filter(
-    (transaction) =>
-      activeAccountIds.has(transaction.accountId) &&
-      (accountFilterId === ALL_ACCOUNTS ||
-        transaction.accountId === accountFilterId),
+  const activeAccountIds = useMemo(
+    () => new Set(accounts.map((account) => account.id)),
+    [accounts],
   );
+  const activeTransactions = useMemo(
+    () =>
+      allTransactions.filter((transaction) =>
+        activeAccountIds.has(transaction.accountId),
+      ),
+    [allTransactions, activeAccountIds],
+  );
+  const accountScopedTransactions = useMemo(
+    () =>
+      activeTransactions.filter(
+        (transaction) =>
+          accountFilterId === ALL_ACCOUNTS ||
+          transaction.accountId === accountFilterId,
+      ),
+    [activeTransactions, accountFilterId],
+  );
+  const detectedRecurringGroups = useMemo(
+    () => detectRecurringTransactions(activeTransactions),
+    [activeTransactions],
+  );
+  const recurringByTransaction = useMemo(() => {
+    const transactionsByGroup = new Map<string, Transaction[]>();
+    for (const transaction of activeTransactions) {
+      const key = getRecurringGroupKey(transaction);
+      if (!key) continue;
+      const group = transactionsByGroup.get(key) ?? [];
+      group.push(transaction);
+      transactionsByGroup.set(key, group);
+    }
+
+    const detectionsByKey = new Map(
+      detectedRecurringGroups.map((group) => [group.key, group]),
+    );
+    const flags = new Map<
+      string,
+      {
+        frequency: RecurringFrequency | null;
+        confidence: RecurrenceConfidence;
+        manual: boolean;
+      }
+    >();
+    for (const [key, transactions] of transactionsByGroup) {
+      const override = recurringOverrides[key];
+      if (override === false) continue;
+      if (override === true) {
+        for (const transaction of transactions) {
+          flags.set(transaction.id, {
+            frequency: null,
+            confidence: "high",
+            manual: true,
+          });
+        }
+        continue;
+      }
+
+      const detection = detectionsByKey.get(key);
+      if (!detection || detection.confidence === "low") continue;
+      for (const transactionId of detection.transactionIds) {
+        flags.set(transactionId, {
+          frequency: detection.frequency,
+          confidence: detection.confidence,
+          manual: false,
+        });
+      }
+    }
+    return flags;
+  }, [activeTransactions, detectedRecurringGroups, recurringOverrides]);
   const transactionsByAccount = new Map<string, typeof allTransactions>();
   for (const transaction of accountScopedTransactions) {
     const accountTransactions =
@@ -372,7 +462,7 @@ export function TransactionList() {
                 </th>
                 <th
                   scope="col"
-                  className={`text-right text-xs text-muted-foreground pb-3 font-medium w-24${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
+                  className={`text-right text-xs text-muted-foreground pb-3 font-medium w-44${isVirtualized ? " sticky top-0 z-10 bg-card" : ""}`}
                 >
                   <span className="sr-only">Actions</span>
                 </th>
@@ -393,6 +483,8 @@ export function TransactionList() {
               )}
               {renderedRows.map((row) => {
                 const transaction = sortedByDateDescending[row.index];
+                const recurring = recurringByTransaction.get(transaction.id);
+                const recurringGroupKey = getRecurringGroupKey(transaction);
                 return editingId === transaction.id ? (
                   <tr
                     key={transaction.id}
@@ -417,7 +509,22 @@ export function TransactionList() {
                       {transaction.date}
                     </td>
                     <td className="py-3 text-sm text-foreground">
-                      {transaction.description}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{transaction.description}</span>
+                        {recurring && (
+                          <Badge
+                            variant="secondary"
+                            className="px-2 py-0 text-[10px]"
+                            title={
+                              recurring.manual
+                                ? "Manually marked recurring"
+                                : `${formatFrequency(recurring.frequency!)} recurrence · ${recurring.confidence} confidence`
+                            }
+                          >
+                            Recurring
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                     <td
                       className="py-3 text-right font-mono tabular-nums text-sm text-foreground pr-4"
@@ -448,6 +555,32 @@ export function TransactionList() {
                     </td>
                     <td className="py-2 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {recurringGroupKey && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-1.5 text-xs"
+                            aria-label={
+                              recurring
+                                ? `Dismiss recurring flag for ${transaction.description}`
+                                : `Mark ${transaction.description} as recurring`
+                            }
+                            title={
+                              recurring
+                                ? "Dismiss recurring flag for this description"
+                                : "Manually mark this description as recurring"
+                            }
+                            onClick={() =>
+                              setRecurringOverride(
+                                recurringGroupKey,
+                                !recurring,
+                              )
+                            }
+                          >
+                            {recurring ? "Dismiss" : "Mark recurring"}
+                          </Button>
+                        )}
                         <button
                           type="button"
                           onClick={() => setEditingId(transaction.id)}

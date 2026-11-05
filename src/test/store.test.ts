@@ -70,6 +70,7 @@ describe("UI store", () => {
         year: new Date().getFullYear(),
         month: new Date().getMonth() + 1,
       },
+      recurringOverrides: {},
       dataRevision: 0,
       isLoading: false,
       error: null,
@@ -132,6 +133,17 @@ describe("UI store", () => {
       year: 2026,
       month: 8,
     });
+  });
+
+  it("persists recurring overrides as UI preferences", () => {
+    const key = JSON.stringify(["monthly utility", "expense"]);
+    useFinanceStore.getState().setRecurringOverride(key, false);
+
+    expect(useFinanceStore.getState().recurringOverrides[key]).toBe(false);
+    const persistedState = JSON.parse(
+      localStorage.getItem("finance-store") ?? "{}",
+    ) as { state?: { recurringOverrides?: Record<string, boolean> } };
+    expect(persistedState.state?.recurringOverrides?.[key]).toBe(false);
   });
 
   it("selects a newly created account and invalidates queried data", async () => {

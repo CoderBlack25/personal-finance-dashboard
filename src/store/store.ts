@@ -36,6 +36,7 @@ interface FinanceStore {
     year: number;
     month: number;
   };
+  recurringOverrides: Record<string, boolean>;
   dataRevision: number;
   isLoading: boolean;
   error: string | null;
@@ -68,6 +69,7 @@ interface FinanceStore {
   ) => void;
   resetTransactionFilters: (accountId: string | null) => void;
   updateSummaryFilters: (filters: Partial<FinanceStore["summaryFilters"]>) => void;
+  setRecurringOverride: (groupKey: string, isRecurring: boolean) => void;
 }
 
 export const useFinanceStore = create<FinanceStore>()(
@@ -86,6 +88,7 @@ export const useFinanceStore = create<FinanceStore>()(
         year: new Date().getFullYear(),
         month: new Date().getMonth() + 1,
       },
+      recurringOverrides: {},
       dataRevision: 0,
       isLoading: false,
       error: null,
@@ -372,12 +375,20 @@ export const useFinanceStore = create<FinanceStore>()(
         set((state) => ({
           summaryFilters: { ...state.summaryFilters, ...filters },
         })),
+      setRecurringOverride: (groupKey, isRecurring) =>
+        set((state) => ({
+          recurringOverrides: {
+            ...state.recurringOverrides,
+            [groupKey]: isRecurring,
+          },
+        })),
     }),
     {
       name: "finance-store",
       partialize: (state) => ({
         activeView: state.activeView,
         selectedAccountId: state.selectedAccountId,
+        recurringOverrides: state.recurringOverrides,
       }),
     },
   ),
