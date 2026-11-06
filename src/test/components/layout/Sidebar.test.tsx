@@ -95,6 +95,10 @@ describe("Sidebar", () => {
     expect(
       screen.getByRole("button", { name: "Budgets" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Runnel")).toBeInTheDocument();
+    expect(
+      screen.getByText("A complete picture of where your money flows"),
+    ).toBeInTheDocument();
   });
 
   it("changes the view when a navigation item is clicked", async () => {

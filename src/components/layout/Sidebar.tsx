@@ -53,11 +53,11 @@ export function Sidebar({
               <Banknote className="w-4 h-4 text-primary-foreground" />
             </div>
             <span className="text-lg font-semibold font-heading tracking-tight">
-              Finance
+              Runnel
             </span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Personal Finance Dashboard
+            A complete picture of where your money flows
           </p>
         </div>
 
@@ -117,9 +117,7 @@ export function Sidebar({
                   </button>
                   <AccountActions
                     account={account}
-                    transactionCount={
-                      transactionCounts.get(account.id) ?? 0
-                    }
+                    transactionCount={transactionCounts.get(account.id) ?? 0}
                   />
                 </div>
               ))}
@@ -143,9 +141,7 @@ export function Sidebar({
                     </div>
                     <AccountActions
                       account={account}
-                      transactionCount={
-                        transactionCounts.get(account.id) ?? 0
-                      }
+                      transactionCount={transactionCounts.get(account.id) ?? 0}
                     />
                   </div>
                 ))}

@@ -95,6 +95,9 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("TransactionForm stub")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Runnel" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("AccountForm stub")).not.toBeInTheDocument();
   });
 
@@ -143,6 +146,7 @@ describe("App", () => {
         name: /let’s set up your finances/i,
       }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Runnel")).toBeInTheDocument();
     expect(screen.getByText("AccountForm stub")).toBeInTheDocument();
     expect(screen.queryByText("TransactionForm stub")).not.toBeInTheDocument();
   });

@@ -76,7 +76,7 @@ const App = () => {
       <main className="min-h-screen bg-background p-6 text-foreground sm:p-10">
         <div className="mx-auto max-w-2xl space-y-6">
           <header className="space-y-2">
-            <p className="text-sm font-medium text-primary">Finance</p>
+            <p className="text-sm font-medium text-primary">Runnel</p>
             <h1 className="text-3xl font-semibold">
               Let’s set up your finances
             </h1>
@@ -107,7 +107,7 @@ const App = () => {
       />
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
-        <h1 className="text-2xl font-semibold">Personal Finance Dashboard</h1>
+        <h1 className="text-2xl font-semibold">Runnel</h1>
 
         {activeView === "dashboard" && (
           <>
